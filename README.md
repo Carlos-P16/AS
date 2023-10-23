@@ -10,4 +10,7 @@ Trabajo de la asignatura Análisis de señales
 ## Deicisiones importantes
 
 **Señal a usar**
+Enlaces a usar :
+https://www.physionet.org/content/apnea-ecg/1.0.0/
+
 **Secciones del trabajo (cosas a hacer con la señal)**
