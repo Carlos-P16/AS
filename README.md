@@ -19,3 +19,9 @@ Enlaces a usar :
 
 
 **Secciones del trabajo (cosas a hacer con la señal)**
+
+- Documento en RMD que extrae características, al igual que suaviza con algunos métodos de señales el dataframe.
+- Documento en Python para los modelos, directamente al dataframe sin transformar, y al transformado y suavizado con fourier
+- Documento en RMD para preprocesado de imágenes.
+- Modelo en python para predicción de tumores
+
