@@ -7,6 +7,7 @@ output: html_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(warning = FALSE)
 ```
 
 A lo largo de este documento se captura el procedimeinto segudo para tratar con el primer tipo de señales biomedicas
@@ -52,6 +53,8 @@ library(dplyr)
 library(xgboost)
 library(caret)
 library(pROC)
+library(ggplot2)
+library(tidyr)
 
 ```
 
@@ -65,7 +68,7 @@ mitbih_train <- read_csv("data/mitbih_train.csv",
 ```
 
 
-```{r}
+```{r warning=FALSE}
 glimpse(mitbih_train)
 ```
 
@@ -92,38 +95,63 @@ Si se visualizan las clases en función de su aparición en el conjunto de datos
 completa predominancia de los ECG donde el paciente no padece de ninguna enfermedad. La distribución de los valores se puede observar en el siguiente diagrama de sectores.
 
 ```{r}
-etiquedas <- factor(x=clases,levels=c(0,1,2,3,4),labels = c("N","S","V","F","Unknown"))
+etiquetas <- factor(x=clases,levels=c(0,1,2,3,4),labels = c("N","S","V","F","Unknown"))
 pie(table(etiquedas))
 ```
 
-En cuanto a las series temporales de cada una de las señales, se tiene que estas son de longitudes distintas, siendo su fin aquella columna a partir de la cual el resto de valores son 0. Para ello, generamos un conjunto de datos adicional donde a partir del fin de los mismos almacenamos un NA en lugar de un 0
-
-
+En cuanto a las series temporales de cada una de las señales, se tiene que estas son de longitudes distintas, siendo su fin aquella columna a partir de la cual el resto de valores son 0. Para ello, generamos un conjunto de datos adicional donde a partir del fin de los mismos almacenamos un `NA` en lugar de un 0
 
 
 
 Algunas primeras metricas de nuestro conjunto de datos para poder enterder comportamientos de cada uno de los tipos de 
 señales son los siguientes:
 
-*   Duración promedio
+*   Duración promedio: hay que tener en cuenta que todos no tienen la misma longitud, ya que se rellena con 0s a partir de donde faltan datos. Se crea un nuevo df cambiando estos 0s por NA
 
 ```{r}
+df_NA <- df
+for (i in 1:dim(df)[1]){
+  df_NA[i,(max(which(df_NA[i,]!=0))+1):dim(df)[2]] <- NA
+}
+head(df_NA)
 
 ```
 
+Omitiendo los NA para los calculos de longitud se tiene que:
+```{r}
+longitudes <- c()
+for(i in 1:dim(df)[1]){
+  v <- sum(!is.na(df_NA[i,]))
+  longitudes <- c(longitudes,v)
+}
+mean(longitudes)
+```
 
+La duración promedio general de nuestras señales es de `r mean(longitudes)` con una desciación típica de `r sd(longitudes)`. Además, la duración en función del tipo de onda es la siguiente:
 
+```{r}
+valores_long = data.frame(l=longitudes,cl=etiquetas)
 
-La duración promedio general de nuestras señales es de __dato__. Además, la duración en función del tipo de onda es la siguiente:
-
+ggplot(data=valores_long, aes(x=l, y=l, fill=cl)) +
+  geom_boxplot(color="black")
+```
 
 
 *   Distribuciones de las amplitudes
 
 Las amplitures de las ondas siguen las siguientes distribuciones
 
+```{r}
+head(df_NA)
+df_NA %>%
+  mutate(etiquetas=etiquetas)%>%
+  pivot_longer(cols=-etiquetas,names_to = "Elemento",values_to = "Valor")%>%
+  ggplot(aes(x=etiquetas,y=Valor,fill=etiquetas))+
+  geom_violin(color="black")
+  
+  
+```
 
-Atendiendo al diagnostico, las distribuciones de las amplitudes son las siguientes
 
 
 #### Otras métricas estudiadas en la asignatura
