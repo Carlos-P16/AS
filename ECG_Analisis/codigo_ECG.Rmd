@@ -14,10 +14,10 @@ con las que trabajaremos a lo largo de nuestro proyecto, los ECG.
 
 En nuestro caso, se ha decidido seguir la metodología CRISP-DM, dividiendo nuestro estudio en las siguientes fases
 
-*   Comprensión del negocio
-*   Comprensión de los datos 
-*   Preparación de los datos
-*   Modelado
+*   Comprensión del negocio y objetivo del estudio
+*   Comprensión y análisis exploratorio de los datos 
+*   Preprocesamiento del conjunto de datos
+*   Implementación del modelo
 *   Evaluación de los resultados
 
 
@@ -30,16 +30,18 @@ Cabe destacar qeu un electrocardiograma se divide en las siguientes partes
 
 __EXPLICAR__
 
-En este caso, el desafio presente consiste en el diagnóstico eficiente de anomalias en el pulso cardíaco
-para fomentar a un diagnóstico precoz de enfermedades como __EXPLICAR__
+En este caso, el desafio presente consiste en el diagnóstico eficiente de anomalias en el pulso cardíaco atendiendo a la zona donde se produce el latido, que puede estar asociada a _ y por lo tanto su detecctión es clave para la realización de un diagnóstico precoz de las enfermedades. En este caso, los tipos de latidos son los siguientes:
+*    Normal: son aquellos que siguen el ritmo cardíaco regular y se originan en el nodo sinusal, que es el marcapasos natural del corazón.
+*   Supraventricular ectopic beat: en español latidos supraventriculares ectópicos pueden estar asociados con arritmias supraventriculares como la fibrilación auricular.
+*   Ventricular ectopic beat: o latidos ventriculares ectópicos pueden estar relacionados con arritmias ventriculares, como la taquicardia ventricular o la fibrilación ventricular.
+*    Fusion beat: latidos de fusión pueden ocurrir en ciertas condiciones, como durante la estimulación eléctrica del corazón o en presencia de arritmias.
+
 
 
 ## Comprensión de los datos
 
 Para nuestro estudio se toma como fuente de datos un fichero csv obtenido del sitio web del siguiente enlace__,
-donde a su vez se puede encontrar el significado de los metadatos proporcionados. La información más relevante es la siguiente:
-
-__Info__
+donde a su vez se puede encontrar el significado de los metadatos proporcionados.
 
 A partir del contenido del fichero se realiza en siguiente analisis exploratorio de los datos
 
@@ -90,7 +92,7 @@ Si se visualizan las clases en función de su aparición en el conjunto de datos
 completa predominancia de los ECG donde el paciente no padece de ninguna enfermedad. La distribución de los valores se puede observar en el siguiente diagrama de sectores.
 
 ```{r}
-etiquedas <- factor(x=clases,levels=c(0,1,2,3,4),labels = c("Normal","P1","P2","P3","P4"))
+etiquedas <- factor(x=clases,levels=c(0,1,2,3,4),labels = c("N","S","V","F","Unknown"))
 pie(table(etiquedas))
 ```
 
@@ -104,6 +106,12 @@ Algunas primeras metricas de nuestro conjunto de datos para poder enterder compo
 señales son los siguientes:
 
 *   Duración promedio
+
+```{r}
+
+```
+
+
 
 
 La duración promedio general de nuestras señales es de __dato__. Además, la duración en función del tipo de onda es la siguiente:
@@ -227,10 +235,6 @@ plot(roc_curves, col = c("red", "green", "blue"), lty = 1:3, main = "Multi-Class
 legend("right", legend = levels(y_test), col = c("red", "green", "blue"), lty = 1:3, lwd = 2)
 
 ```
-
-
-
-
 
 
 #### Segundo modelo
