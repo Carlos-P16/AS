@@ -1,0 +1,299 @@
+---
+title: "ejemplo"
+author: "ruben"
+date: "2023-10-23"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+#library(wfdb)
+library(readr)
+
+# Specify the file path
+file_path <- "data/100.dat"
+
+# Guess the encoding of the file
+(encoding <- guess_encoding(file_path))
+
+
+file_path <- "data/100.dat"
+
+encoding <- "GB18030"  # Replace with the actual encoding of your file
+
+# Load the .dat file with the specified encoding
+data <- read.table(file_path, fileEncoding = encoding, header = TRUE)
+```
+
+```{r}
+library(readr)
+mitbih_train <- read_csv("data/mitbih_train.csv", 
+    col_names = FALSE)
+
+```
+
+
+```{r}
+library(dplyr)
+glimpse(mitbih_train)
+```
+
+
+```{r}
+# Se observa que los datos paran con el primer 0 que encuentra
+df <- mitbih_train[,1:187]
+clases <- mitbih_train[,188]
+clases <- clases[[1]]
+
+
+table(clases)
+etiquedas <- factor(x=clases,levels=c(0,1,2,3,4),labels = c("Normal","P1","P2","P3","P4"))
+pie(table(etiquedas))
+
+```
+
+
+### Preprocesamiento de todos los datos
+En primer lugar se extraen los datos y se limpia los valores de 0s al final de estos
+En este caso se toma como ED la lista, dado que el dataFrame requiere que todos los datos
+tengan la misma longitud
+
+En primer lugar se calcula la longitud de los datos
+
+```{r}
+
+```
+
+
+
+
+En segundo lugar, se calcula la longitud por tipo de dato
+
+
+```{r}
+
+calculaTam <- function(datos){
+  simplified <- sapply((datos),function(x){
+    print(dim(x))
+    length(x[1:which(x!=0.0)[length(which(x!=0.0))]])
+  })
+  return(mean(simplified))
+}
+
+
+tam <- c()
+tipos <- c(0,1,2,3,4)
+df_t <- t(df)
+for(t in tipos ){
+  v <- calculaTam(df_t[,which(clases==t)])
+  v <- v/length(which(clases==t))
+  tam <- c(tam,v)
+  print(tam)
+  print(v)
+  print("\n")
+}
+
+
+print(tam)
+
+```
+
+
+
+
+
+```{r}
+
+dato1 <- df[1,]
+length(dato1)
+
+
+dato1_p <- dato1[1:which(dato1!=0.0)[length(which(dato1!=0.0))]]
+#plot(1:length(dato1_p),dato1_p,type="l",col="black")
+
+dato2 <- df[2,]
+length(dato2)
+
+
+dato2_p <- dato2[1:which(dato2!=0.0)[length(which(dato2!=0.0))]]
+#plot(1:length(dato1_p),dato1_p,type="l",col="black")
+plot(1:length(dato2_p),dato2_p[1:length(dato2_p)],col="red",type="l")
+lines(1:length(dato1_p),dato1_p,type="l",col="black")
+
+spectrum(as.vector(unlist(dato2_p))) 
+```
+
+
+```{r}
+primer_1 <- which(clases!=0)[1]
+
+dato_n <- unlist(df[primer_1,])
+daton_p <- dato_n[1:which(dato_n!=0.0)[length(which(dato_n!=0.0))]]
+plot(1:length(daton_p),daton_p[1:length(daton_p)],col="red",type="l")
+```
+
+```{r}
+spectrum(as.vector(daton_p)) 
+```
+
+
+
+
+```{r}
+library(tiff)
+library(imager)
+library(signal)
+library(fields)
+library(ggplot2)
+transformada <-((fft(daton_p)))
+```
+
+
+
+```{r}
+
+# Instalar los paquetes si no están instalados
+install.packages("rpeakdetection")
+install.packages("ECGkit")
+
+# Cargar los paquetes
+library(rpeakdetection)
+library(ECGkit)
+
+# Simular una señal de ECG (reemplaza esto con tu propia señal)
+set.seed(123)
+ecg_signal <- sin(seq(0, 2 * pi, length.out = 1000)) + 0.5 * rnorm(1000)
+
+# Detección de picos R usando rpeakdetection
+r_peaks <- rpeakdetection(ecg_signal)
+
+# Detección de ondas P, QRS y T usando ECGkit
+waves <- ECGkit::ecg_wave_detection(ecg_signal, r_peaks)
+
+# Visualización de la señal y las ondas P, QRS y T
+plot(ecg_signal, type = "l", main = "Señal de ECG con Ondas P, QRS y T")
+points(r_peaks, ecg_signal[r_peaks], col = "red", pch = 20)
+abline(v = waves$p_onset, col = "blue", lty = 2)
+abline(v = waves$p_peak, col = "green", lty = 2)
+abline(v = waves$p_offset, col = "blue", lty = 2)
+abline(v = waves$qrs_onset, col = "blue", lty = 2)
+abline(v = waves$qrs_end, col = "blue", lty = 2)
+abline(v = waves$t_peak, col = "purple", lty = 2)
+abline(v = waves$t_offset, col = "purple", lty = 2)
+legend("topright", legend = c("Señal ECG", "Picos R", "Ondas P, QRS y T"), col = c("black", "red", "blue"), lty = c(1, 1, 2), pch = c(NA, 20, NA))
+
+# Imprimir información sobre las ondas detectadas
+print(waves)
+
+
+
+
+```
+
+
+```{r}
+
+# Instalar el paquete si no está instalado
+
+# Cargar el paquete
+library(pracma)
+
+# Simular una señal de ECG (reemplaza esto con tu propia señal)
+set.seed(123)
+ecg_signal <- sin(seq(0, 2 * pi, length.out = 1000)) + 0.5 * rnorm(1000)
+
+# Detección de picos R usando findpeaks
+peaks <- findpeaks(ecg_signal, threshold = 0.5)
+
+# Visualización de la señal y los picos R
+plot(ecg_signal, type = "l", main = "Señal de ECG con Picos R")
+points(peaks[,3], peaks[,1], col = "red", pch = 20)
+
+```
+
+
+
+
+```{r}
+
+
+# Instalar el paquete si no está instalado
+
+# Cargar el paquete
+library(wavelets)
+
+# Simular una señal de ECG (reemplaza esto con tu propia señal)
+set.seed(123)
+ecg_signal <- sin(seq(0, 2 * pi, length.out = 1000)) + 0.5 * rnorm(1000)
+
+# Aplicar la DWT
+dwt_result <- dwt(ecg_signal, filter = "haar")
+
+# Visualización de la señal y la DWT
+par(mfrow = c(2, 1))
+plot(ecg_signal, type = "l", main = "Señal de ECG Original")
+plot(dwt_result@W$W6, type = "l", main = "Transformada Wavelet Discreta")
+
+
+```
+
+
+
+```{r}
+# Instalar el paquete si no está instalado
+#install.packages("signal")
+
+# Cargar el paquete
+library(signal)
+
+# Simular una señal de ECG (reemplaza esto con tu propia señal)
+set.seed(123)
+ecg_signal <- sin(seq(0, 2 * pi, length.out = 1000)) + 0.5 * rnorm(1000)
+
+# Definir parámetros para la transformada de Gabor
+freq <- 1  # Frecuencia de la onda sinusoidal
+sigma <- 5  # Ancho de la función gaussiana
+
+# Aplicar la transformada de Gabor
+gabor_transform <- specgram(ecg_signal, n = 256)
+
+# Visualización de la señal y la transformada de Gabor
+image(gabor_transform, main = "Transformada de Gabor")
+
+```
+
+
+
+
+```{r}
+# Crear la matriz
+matriz <- matrix(c(1, 2, 3, 4, 0,
+                  3, 4, 0, 0, 0,
+                  1, 2, 0, 0, 0), nrow = 3, byrow = TRUE)
+
+# Función para reemplazar los ceros con NA si no hay ningún número detrás
+replace_zeros <- function(row) {
+  # Encontrar el índice del último número no cero
+  ultimo_numero <- max(which(row != 0), default = 0)
+  
+  # Reemplazar los ceros con NA si no hay ningún número detrás
+  if (ultimo_numero == 0) {
+    row[row == 0] <- NA
+  }
+  
+  return(row)
+}
+
+# Aplicar la función a cada fila de la matriz
+matriz <- t(apply(matriz, 1, replace_zeros))
+
+# Imprimir la matriz resultante
+print(matriz)
+
+```
+
+
+
