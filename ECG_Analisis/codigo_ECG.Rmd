@@ -47,7 +47,7 @@ donde a su vez se puede encontrar el significado de los metadatos proporcionados
 A partir del contenido del fichero se realiza en siguiente analisis exploratorio de los datos
 
 
-```{r}
+```{r message=FALSE, warning=FALSE}
 library(readr)
 library(dplyr)
 library(xgboost)
@@ -55,13 +55,13 @@ library(caret)
 library(pROC)
 library(ggplot2)
 library(tidyr)
-
+library(seewave)
 ```
 
 
 
 
-```{r}
+```{r message=FALSE, warning=FALSE}
 
 mitbih_train <- read_csv("data/mitbih_train.csv", 
     col_names = FALSE)
@@ -96,7 +96,7 @@ completa predominancia de los ECG donde el paciente no padece de ninguna enferme
 
 ```{r}
 etiquetas <- factor(x=clases,levels=c(0,1,2,3,4),labels = c("N","S","V","F","Unknown"))
-pie(table(etiquedas))
+pie(table(etiquetas))
 ```
 
 En cuanto a las series temporales de cada una de las señales, se tiene que estas son de longitudes distintas, siendo su fin aquella columna a partir de la cual el resto de valores son 0. Para ello, generamos un conjunto de datos adicional donde a partir del fin de los mismos almacenamos un `NA` en lugar de un 0
@@ -115,6 +115,7 @@ for (i in 1:dim(df)[1]){
 }
 head(df_NA)
 
+save(df_NA,file="vars.RData")
 ```
 
 Omitiendo los NA para los calculos de longitud se tiene que:
@@ -125,9 +126,10 @@ for(i in 1:dim(df)[1]){
   longitudes <- c(longitudes,v)
 }
 mean(longitudes)
+sd(longitudes)
 ```
 
-La duración promedio general de nuestras señales es de `r mean(longitudes)` con una desciación típica de `r sd(longitudes)`. Además, la duración en función del tipo de onda es la siguiente:
+La duración promedio general de nuestras señales es de `r mean(longitudes)` con una desviación típica de `r sd(longitudes)`. Además, la duración en función del tipo de onda es la siguiente:
 
 ```{r}
 valores_long = data.frame(l=longitudes,cl=etiquetas)
@@ -152,10 +154,111 @@ df_NA %>%
   
 ```
 
+Con esto se puede observar que las distribuciones de las señales en función de su tipo son diferentes. Donde por ejemplo se destaca que la distribución de las ondas de ECG normales es más baja que para otro tipo de diagnósticos.
+
+Por ultimo, se representa de forma grafica un ejemplo de cada uno
+
+```{r}
+elemN <- df[1,]
+elemS <- df[which(etiquetas=="S")[1],]
+elemV <- df[which(etiquetas=="V")[1],]
+elemF <- df[which(etiquetas=="F")[1],]
+elemQ <- df[which(etiquetas=="Unknown")[1],]
+
+par(mfrow=c(2,3))
+plot(1:dim(elemN)[2],elemN,type="l",main="Onda normal",xlab="tiempo")
+plot(1:dim(elemN)[2],elemS,type="l",main="Onda S",col ="skyblue",xlab="tiempo")
+plot(1:dim(elemN)[2],elemV,type="l",main="Onda V",col ="pink",xlab="tiempo")
+plot(1:dim(elemN)[2],elemF,type="l",main="Onda F",col="green",xlab="tiempo")
+plot(1:dim(elemN)[2],elemQ,type="l",main="Onda desconocida",col="purple",xlab="tiempo")
+
+```
+
+
 
 
 #### Otras métricas estudiadas en la asignatura
-__Se explican las sigeuites__
+Además de las características anteriores, se realiza un estudio de otro conjunto de métricas
+Cabe destacar que sabemos que la frecuencia de muestreo del aparato es de 125Hzs.
+
+Las seleccionadas para el tratamiento de nuestras señales han sido las siguientes:
+
+*   Wavelets para la identificación de las partes de la onda
+
+Realizando una pequeña busqueda previa, se tiene que la frecuencia de latidos promedio en señales Normales es cercana a los 100 latidos por minuto.
+Además, la frecuencia de muestreo del aparato es de 125 Hzs. Sabiendo esto, para aplicar la transformada wavelet en nuestro porblema, como primera aproximación, se visualiza la función para cada tipo de onda de forma individual, usando para ello el tamaño de ventana inicial que cumple lo siguiente:
+
+$$Periodo\_cardiaco (seg)= \frac{60}{100} = 0.6 s$$
+
+Dado que se tiene que el aparato tiene una frecuencia de 125Hz, el número de muestras en cada periodo de un latido es de
+$$125 \cdot 0.6 = 75$$
+Por ello, como primera ventana incial tomaremos una de prueba algo más del doble para evitar problemas de cara a captrar la señal, que en este caso será de 160
+
+
+```{r}
+
+fr <-125
+
+elemN <- as.numeric(df[1,])
+elemS <- as.numeric(df[which(etiquetas=="S")[1],])
+elemV <- as.numeric(df[which(etiquetas=="V")[1],])
+elemF <- as.numeric(df[which(etiquetas=="F")[1],])
+elemQ <- as.numeric(df[which(etiquetas=="Unknown")[1],])
+
+par(mfrow=c(2,3))
+spectro(elemN,f=fr,wl=40,ovlp=50,wn="bartlett",scale=F,flog=T)
+title("Onda normal")
+spectro(elemS,f=fr,wl=40,ovlp=50,wn="bartlett",scale=F,flog=T)
+title("Onda S")
+spectro(elemV,f=fr,wl=40,ovlp=50,wn="bartlett",scale=F,flog=T)
+title("Onda V")
+spectro(elemF,f=fr,wl=40,ovlp=50,wn="bartlett",scale=F,flog=T)
+title("Onda F")
+spectro(elemQ,f=fr,wl=40,ovlp=50,wn="bartlett",scale=F,flog=T)
+title("Onda desconocida")
+```
+
+Probando con otros tamaños de pantalla se tiene que los resultados son:
+```{r}
+
+fr <-125
+
+elemN <- as.numeric(df[1,])
+elemS <- as.numeric(df[which(etiquetas=="S")[1],])
+elemV <- as.numeric(df[which(etiquetas=="V")[1],])
+elemF <- as.numeric(df[which(etiquetas=="F")[1],])
+elemQ <- as.numeric(df[which(etiquetas=="Unknown")[1],])
+
+par(mfrow=c(2,3))
+spectro(elemN,f=fr,wl=60,ovlp=50,wn="bartlett",scale=F,flog=T)
+title("Onda normal")
+spectro(elemS,f=fr,wl=60,ovlp=50,wn="bartlett",scale=F,flog=T)
+title("Onda S")
+spectro(elemV,f=fr,wl=60,ovlp=50,wn="bartlett",scale=F,flog=T)
+title("Onda V")
+spectro(elemF,f=fr,wl=60,ovlp=50,wn="bartlett",scale=F,flog=T)
+title("Onda F")
+spectro(elemQ,f=fr,wl=60,ovlp=50,wn="bartlett",scale=F,flog=T)
+title("Onda desconocida")
+```
+
+
+```{r}
+# Frecuencia cardíaca en latidos por minuto
+frecuencia_cardiaca = 100
+
+# Intervalo RR en segundos
+intervalo_RR = 60 / frecuencia_cardiaca
+
+# Frecuencia de muestreo
+frecuencia_muestreo = 125
+
+# Número de muestras por intervalo RR
+muestras_por_RR = round(frecuencia_muestreo * intervalo_RR)
+
+# Tamaño de la ventana (por ejemplo, el doble de muestras por intervalo RR)
+tamano_ventana = 2 * muestras_por_RR
+```
 
 
 
