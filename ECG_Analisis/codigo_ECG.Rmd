@@ -7,6 +7,7 @@ output: html_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(warning = FALSE)
 ```
 
 A lo largo de este documento se captura el procedimeinto segudo para tratar con el primer tipo de señales biomedicas
@@ -14,10 +15,10 @@ con las que trabajaremos a lo largo de nuestro proyecto, los ECG.
 
 En nuestro caso, se ha decidido seguir la metodología CRISP-DM, dividiendo nuestro estudio en las siguientes fases
 
-*   Comprensión del negocio
-*   Comprensión de los datos 
-*   Preparación de los datos
-*   Modelado
+*   Comprensión del negocio y objetivo del estudio
+*   Comprensión y análisis exploratorio de los datos 
+*   Preprocesamiento del conjunto de datos
+*   Implementación del modelo
 *   Evaluación de los resultados
 
 
@@ -30,40 +31,44 @@ Cabe destacar qeu un electrocardiograma se divide en las siguientes partes
 
 __EXPLICAR__
 
-En este caso, el desafio presente consiste en el diagnóstico eficiente de anomalias en el pulso cardíaco
-para fomentar a un diagnóstico precoz de enfermedades como __EXPLICAR__
+En este caso, el desafio presente consiste en el diagnóstico eficiente de anomalias en el pulso cardíaco atendiendo a la zona donde se produce el latido, que puede estar asociada a _ y por lo tanto su detecctión es clave para la realización de un diagnóstico precoz de las enfermedades. En este caso, los tipos de latidos son los siguientes:
+*    Normal: son aquellos que siguen el ritmo cardíaco regular y se originan en el nodo sinusal, que es el marcapasos natural del corazón.
+*   Supraventricular ectopic beat: en español latidos supraventriculares ectópicos pueden estar asociados con arritmias supraventriculares como la fibrilación auricular.
+*   Ventricular ectopic beat: o latidos ventriculares ectópicos pueden estar relacionados con arritmias ventriculares, como la taquicardia ventricular o la fibrilación ventricular.
+*    Fusion beat: latidos de fusión pueden ocurrir en ciertas condiciones, como durante la estimulación eléctrica del corazón o en presencia de arritmias.
+
 
 
 ## Comprensión de los datos
 
 Para nuestro estudio se toma como fuente de datos un fichero csv obtenido del sitio web del siguiente enlace__,
-donde a su vez se puede encontrar el significado de los metadatos proporcionados. La información más relevante es la siguiente:
-
-__Info__
+donde a su vez se puede encontrar el significado de los metadatos proporcionados.
 
 A partir del contenido del fichero se realiza en siguiente analisis exploratorio de los datos
 
 
-```{r}
+```{r message=FALSE, warning=FALSE}
 library(readr)
 library(dplyr)
 library(xgboost)
 library(caret)
 library(pROC)
-
+library(ggplot2)
+library(tidyr)
+library(seewave)
 ```
 
 
 
 
-```{r}
+```{r message=FALSE, warning=FALSE}
 
 mitbih_train <- read_csv("data/mitbih_train.csv", 
     col_names = FALSE)
 ```
 
 
-```{r}
+```{r warning=FALSE}
 glimpse(mitbih_train)
 ```
 
@@ -90,36 +95,170 @@ Si se visualizan las clases en función de su aparición en el conjunto de datos
 completa predominancia de los ECG donde el paciente no padece de ninguna enfermedad. La distribución de los valores se puede observar en el siguiente diagrama de sectores.
 
 ```{r}
-etiquedas <- factor(x=clases,levels=c(0,1,2,3,4),labels = c("Normal","P1","P2","P3","P4"))
-pie(table(etiquedas))
+etiquetas <- factor(x=clases,levels=c(0,1,2,3,4),labels = c("N","S","V","F","Unknown"))
+pie(table(etiquetas))
 ```
 
-En cuanto a las series temporales de cada una de las señales, se tiene que estas son de longitudes distintas, siendo su fin aquella columna a partir de la cual el resto de valores son 0. Para ello, generamos un conjunto de datos adicional donde a partir del fin de los mismos almacenamos un NA en lugar de un 0
-
-
+En cuanto a las series temporales de cada una de las señales, se tiene que estas son de longitudes distintas, siendo su fin aquella columna a partir de la cual el resto de valores son 0. Para ello, generamos un conjunto de datos adicional donde a partir del fin de los mismos almacenamos un `NA` en lugar de un 0
 
 
 
 Algunas primeras metricas de nuestro conjunto de datos para poder enterder comportamientos de cada uno de los tipos de 
 señales son los siguientes:
 
-*   Duración promedio
+*   Duración promedio: hay que tener en cuenta que todos no tienen la misma longitud, ya que se rellena con 0s a partir de donde faltan datos. Se crea un nuevo df cambiando estos 0s por NA
 
+```{r}
+df_NA <- df
+for (i in 1:dim(df)[1]){
+  df_NA[i,(max(which(df_NA[i,]!=0))+1):dim(df)[2]] <- NA
+}
+head(df_NA)
 
-La duración promedio general de nuestras señales es de __dato__. Además, la duración en función del tipo de onda es la siguiente:
+save(df_NA,file="vars.RData")
+```
 
+Omitiendo los NA para los calculos de longitud se tiene que:
+```{r}
+longitudes <- c()
+for(i in 1:dim(df)[1]){
+  v <- sum(!is.na(df_NA[i,]))
+  longitudes <- c(longitudes,v)
+}
+mean(longitudes)
+sd(longitudes)
+```
+
+La duración promedio general de nuestras señales es de `r mean(longitudes)` con una desviación típica de `r sd(longitudes)`. Además, la duración en función del tipo de onda es la siguiente:
+
+```{r}
+valores_long = data.frame(l=longitudes,cl=etiquetas)
+
+ggplot(data=valores_long, aes(x=l, y=l, fill=cl)) +
+  geom_boxplot(color="black")
+```
 
 
 *   Distribuciones de las amplitudes
 
 Las amplitures de las ondas siguen las siguientes distribuciones
 
+```{r}
+head(df_NA)
+df_NA %>%
+  mutate(etiquetas=etiquetas)%>%
+  pivot_longer(cols=-etiquetas,names_to = "Elemento",values_to = "Valor")%>%
+  ggplot(aes(x=etiquetas,y=Valor,fill=etiquetas))+
+  geom_violin(color="black")
+  
+  
+```
 
-Atendiendo al diagnostico, las distribuciones de las amplitudes son las siguientes
+Con esto se puede observar que las distribuciones de las señales en función de su tipo son diferentes. Donde por ejemplo se destaca que la distribución de las ondas de ECG normales es más baja que para otro tipo de diagnósticos.
+
+Por ultimo, se representa de forma grafica un ejemplo de cada uno
+
+```{r}
+elemN <- df[1,]
+elemS <- df[which(etiquetas=="S")[1],]
+elemV <- df[which(etiquetas=="V")[1],]
+elemF <- df[which(etiquetas=="F")[1],]
+elemQ <- df[which(etiquetas=="Unknown")[1],]
+
+par(mfrow=c(2,3))
+plot(1:dim(elemN)[2],elemN,type="l",main="Onda normal",xlab="tiempo")
+plot(1:dim(elemN)[2],elemS,type="l",main="Onda S",col ="skyblue",xlab="tiempo")
+plot(1:dim(elemN)[2],elemV,type="l",main="Onda V",col ="pink",xlab="tiempo")
+plot(1:dim(elemN)[2],elemF,type="l",main="Onda F",col="green",xlab="tiempo")
+plot(1:dim(elemN)[2],elemQ,type="l",main="Onda desconocida",col="purple",xlab="tiempo")
+
+```
+
+
 
 
 #### Otras métricas estudiadas en la asignatura
-__Se explican las sigeuites__
+Además de las características anteriores, se realiza un estudio de otro conjunto de métricas
+Cabe destacar que sabemos que la frecuencia de muestreo del aparato es de 125Hzs.
+
+Las seleccionadas para el tratamiento de nuestras señales han sido las siguientes:
+
+*   Wavelets para la identificación de las partes de la onda
+
+Realizando una pequeña busqueda previa, se tiene que la frecuencia de latidos promedio en señales Normales es cercana a los 100 latidos por minuto.
+Además, la frecuencia de muestreo del aparato es de 125 Hzs. Sabiendo esto, para aplicar la transformada wavelet en nuestro porblema, como primera aproximación, se visualiza la función para cada tipo de onda de forma individual, usando para ello el tamaño de ventana inicial que cumple lo siguiente:
+
+$$Periodo\_cardiaco (seg)= \frac{60}{100} = 0.6 s$$
+
+Dado que se tiene que el aparato tiene una frecuencia de 125Hz, el número de muestras en cada periodo de un latido es de
+$$125 \cdot 0.6 = 75$$
+Por ello, como primera ventana incial tomaremos una de prueba algo más del doble para evitar problemas de cara a captrar la señal, que en este caso será de 160
+
+
+```{r}
+
+fr <-125
+
+elemN <- as.numeric(df[1,])
+elemS <- as.numeric(df[which(etiquetas=="S")[1],])
+elemV <- as.numeric(df[which(etiquetas=="V")[1],])
+elemF <- as.numeric(df[which(etiquetas=="F")[1],])
+elemQ <- as.numeric(df[which(etiquetas=="Unknown")[1],])
+
+par(mfrow=c(2,3))
+spectro(elemN,f=fr,wl=40,ovlp=50,wn="bartlett",scale=F,flog=T)
+title("Onda normal")
+spectro(elemS,f=fr,wl=40,ovlp=50,wn="bartlett",scale=F,flog=T)
+title("Onda S")
+spectro(elemV,f=fr,wl=40,ovlp=50,wn="bartlett",scale=F,flog=T)
+title("Onda V")
+spectro(elemF,f=fr,wl=40,ovlp=50,wn="bartlett",scale=F,flog=T)
+title("Onda F")
+spectro(elemQ,f=fr,wl=40,ovlp=50,wn="bartlett",scale=F,flog=T)
+title("Onda desconocida")
+```
+
+Probando con otros tamaños de pantalla se tiene que los resultados son:
+```{r}
+
+fr <-125
+
+elemN <- as.numeric(df[1,])
+elemS <- as.numeric(df[which(etiquetas=="S")[1],])
+elemV <- as.numeric(df[which(etiquetas=="V")[1],])
+elemF <- as.numeric(df[which(etiquetas=="F")[1],])
+elemQ <- as.numeric(df[which(etiquetas=="Unknown")[1],])
+
+par(mfrow=c(2,3))
+spectro(elemN,f=fr,wl=60,ovlp=50,wn="bartlett",scale=F,flog=T)
+title("Onda normal")
+spectro(elemS,f=fr,wl=60,ovlp=50,wn="bartlett",scale=F,flog=T)
+title("Onda S")
+spectro(elemV,f=fr,wl=60,ovlp=50,wn="bartlett",scale=F,flog=T)
+title("Onda V")
+spectro(elemF,f=fr,wl=60,ovlp=50,wn="bartlett",scale=F,flog=T)
+title("Onda F")
+spectro(elemQ,f=fr,wl=60,ovlp=50,wn="bartlett",scale=F,flog=T)
+title("Onda desconocida")
+```
+
+
+```{r}
+# Frecuencia cardíaca en latidos por minuto
+frecuencia_cardiaca = 100
+
+# Intervalo RR en segundos
+intervalo_RR = 60 / frecuencia_cardiaca
+
+# Frecuencia de muestreo
+frecuencia_muestreo = 125
+
+# Número de muestras por intervalo RR
+muestras_por_RR = round(frecuencia_muestreo * intervalo_RR)
+
+# Tamaño de la ventana (por ejemplo, el doble de muestras por intervalo RR)
+tamano_ventana = 2 * muestras_por_RR
+```
 
 
 
@@ -227,10 +366,6 @@ plot(roc_curves, col = c("red", "green", "blue"), lty = 1:3, main = "Multi-Class
 legend("right", legend = levels(y_test), col = c("red", "green", "blue"), lty = 1:3, lwd = 2)
 
 ```
-
-
-
-
 
 
 #### Segundo modelo
