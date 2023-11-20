@@ -48,6 +48,7 @@ A partir del contenido del fichero se realiza en siguiente analisis exploratorio
 
 
 ```{r message=FALSE, warning=FALSE}
+library(Rwave)
 library(readr)
 library(dplyr)
 library(xgboost)
@@ -242,6 +243,7 @@ spectro(elemQ,f=fr,wl=60,ovlp=50,wn="bartlett",scale=F,flog=T)
 title("Onda desconocida")
 ```
 
+Con esto se tiene que para al menos la primera onda de cada tipo, la frecuencia de la onda en sí parece de mayor frecuencia que en el resto de ondas.
 
 ```{r}
 # Frecuencia cardíaca en latidos por minuto
@@ -260,6 +262,126 @@ muestras_por_RR = round(frecuencia_muestreo * intervalo_RR)
 tamano_ventana = 2 * muestras_por_RR
 ```
 
+El espectro promedio de la onda es el siguiente: 
+
+```{r}
+
+fr <-125
+
+elemN <- as.numeric(df[1,])
+elemS <- as.numeric(df[which(etiquetas=="S")[1],])
+elemV <- as.numeric(df[which(etiquetas=="V")[1],])
+elemF <- as.numeric(df[which(etiquetas=="F")[1],])
+elemQ <- as.numeric(df[which(etiquetas=="Unknown")[1],])
+
+par(mfrow=c(2,3))
+meanspec(elemN,f=fr,wl=60,ovlp=20,wn="bartlett",scale=F,flog=T)
+title("Onda normal")
+meanspec(elemS,f=fr,wl=60,ovlp=20,wn="bartlett",scale=F,flog=T)
+title("Onda S")
+meanspec(elemV,f=fr,wl=60,ovlp=20,wn="bartlett",scale=F,flog=T)
+title("Onda V")
+meanspec(elemF,f=fr,wl=60,ovlp=20,wn="bartlett",scale=F,flog=T)
+title("Onda F")
+meanspec(elemQ,f=fr,wl=60,ovlp=20,wn="bartlett",scale=F,flog=T)
+title("Onda desconocida")
+```
+
+Se añade para el conjunto de entrenamineto la totalidad de sus espectros de onda promedio, para poder usarlos como características en nuestros algorimos.
+
+
+```{r}
+
+```
+
+
+
+Se replica el experimento con la transformada de gabor
+
+```{r}
+
+fr <-125
+
+elemN <- as.numeric(df[1,])
+elemS <- as.numeric(df[which(etiquetas=="S")[1],])
+elemV <- as.numeric(df[which(etiquetas=="V")[1],])
+elemF <- as.numeric(df[which(etiquetas=="F")[1],])
+elemQ <- as.numeric(df[which(etiquetas=="Unknown")[1],])
+
+par(mfrow=c(2,3))
+cgt(elemN, 125, freqstep=.005, scale=25, plot=TRUE)
+title("Onda normal")
+cgt(elemS, 125, freqstep=.005, scale=25, plot=TRUE)
+title("Onda S")
+cgt(elemV, 125, freqstep=.005, scale=25, plot=TRUE)
+title("Onda V")
+cgt(elemF, 125, freqstep=.005, scale=25, plot=TRUE)
+title("Onda F")
+cgt(elemQ, 125, freqstep=.005, scale=25, plot=TRUE)
+title("Onda desconocida")
+```
+A partir de esta, se pueden extraer los siguientes datos
+
+
+
+
+
+Además, a partir de las ondas dadas podemos extraer el valor de su energia de la siguiente forma
+
+
+```{r}
+calcular_ste <- function(signal, tamano_ventana, solapamiento) {
+  longitud_signal <- length(signal)
+  energia_ste <- numeric(0)  # Vector para almacenar la energía STE
+  
+  # Iterar a través de la señal con solapamiento
+  for (i in seq(1, longitud_signal - tamano_ventana + 1, by = solapamiento)) {
+    ventana <- signal[i:(i + tamano_ventana - 1)]
+    energia_segmento <- sum(ventana^2)
+    energia_ste <- c(energia_ste, energia_segmento)
+  }
+  
+  return(energia_ste)
+}
+
+
+ste_resultadoN <- calcular_ste(elemN, 10, 3)
+ste_resultadoS <- calcular_ste(elemS, 10, 3)
+ste_resultadoV <- calcular_ste(elemV, 10, 3)
+ste_resultadoF <- calcular_ste(elemF, 10, 3)
+ste_resultadoQ <- calcular_ste(elemQ, 10, 3)
+
+
+par(mfrow=c(2,3))
+plot(ste_resultadoN,type="l",col="pink")
+plot(ste_resultadoS,type="l",col="skyblue")
+plot(ste_resultadoV,type="l",col="green")
+plot(ste_resultadoF,type="l",col="purple")
+plot(ste_resultadoQ,type="l",col="orange")
+
+```
+
+
+*   Wavelets
+Por ultimo se aplican las wavelets al problema en cuestión, que nos permitiran aislar las frecuencias del posible ruido de los electrocardiogramas junto con sus elementos básicos, P, QRS y T, explicados con anterioridad.
+
+```{r}
+n0<-6
+nv<- 15
+source("scales.R")
+
+par(mfrow=c(2,3))
+cwtsinwaveN <-cwt(elemN,n0,nv)
+cwtsinwaveS <-cwt(elemS,n0,nv)
+cwtsinwaveV <-cwt(elemV,n0,nv)
+cwtsinwaveF <-cwt(elemF,n0,nv)
+cwtsinwaveQ <-cwt(elemQ,n0,nv)
+
+
+
+```
+
+
 
 
 ##  Preparación de los datos
@@ -268,7 +390,30 @@ Dado que implementaremos dos modelos diferences, como se verá en el siguiente a
 
 ```{r}
 
+ind_train <- sample(1:dim(df)[1],size = round(dim(df)[1]*0.002))
+
+df_train <- data.frame(id = ind_train,clase=etiquetas[ind_train])
+
+df_train_signal <- df_NA[ind_train,]
+
+df_train_signal %>%
+  mutate(media=valores_media)%>%
+  mutate(iqr=valores_iqr)%>%
+  mutate(tiempo=tiempos)
+
+
 ```
+
+En cuanto a las caracteristicas extraidas para el entenamiento del modelo, las seleccionadas son las siguientes:
+
+*   Tiempo de duración
+*   Amplitud promedio
+*   Rango intercuartílico
+*   Cosas de frecuancuas me
+*   Energia mediana de la onda
+*   Energía máxima de la onda
+
+#### Añadir las propias de los wavelet
 
 
 *   Segundo dataframe: contiene los valores que toma en el tiempo la señal, además de una serie de características añadidas en las. Este alimentará el 
