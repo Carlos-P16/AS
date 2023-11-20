@@ -23,15 +23,20 @@ En nuestro caso, se ha decidido seguir la metodología CRISP-DM, dividiendo nues
 
 
 
-
 ## Comprensión de los datos
-Se ha realizado un estudio previo del funcionamiento de los mismos. __EXPLICAR__
+Se ha realizado un estudio previo del funcionamiento de los mismos. De este, hemos extraido las siguientes conclusiones:
 
-Cabe destacar qeu un electrocardiograma se divide en las siguientes partes
+Un electrocardiograma es una prueba médica utilizada para evaluar la salud del corazón y diagnosticar problemas cardíacos. El corazón funciona como una bomba muscular, y su actividad eléctrica coordina la contracción de las distintas partes del músculo cardíaco. Este, en un estado normal tiene una frecuencia de bombeo de entre 60 y 100 pulsaciones por segundo, algo a tener en cuenta a lo largo de este cuaderno.
 
-__EXPLICAR__
+Cabe destacar que un electrocardiograma se divide en las siguientes partes:
 
-En este caso, el desafio presente consiste en el diagnóstico eficiente de anomalias en el pulso cardíaco atendiendo a la zona donde se produce el latido, que puede estar asociada a _ y por lo tanto su detecctión es clave para la realización de un diagnóstico precoz de las enfermedades. En este caso, los tipos de latidos son los siguientes:
+
+[!Onda en un ECG]("./imagenes/ECG_parts.pgn")
+
+
+Donde en P, se contraen las cavidades superiores del corazón, en QRS se contraen las inferiores y en T serecuperan las celulas del músculo cardíaco.
+
+En este caso, el desafio presente consiste en el diagnóstico eficiente de anomalias en el pulso cardíaco atendiendo a la zona donde se produce el latido, que puede estar asociada a enfermedades y por lo tanto su detecctión es clave para la realización de un diagnóstico precoz de las enfermedades. En este caso, los tipos de latidos son los siguientes:
 *    Normal: son aquellos que siguen el ritmo cardíaco regular y se originan en el nodo sinusal, que es el marcapasos natural del corazón.
 *   Supraventricular ectopic beat: en español latidos supraventriculares ectópicos pueden estar asociados con arritmias supraventriculares como la fibrilación auricular.
 *   Ventricular ectopic beat: o latidos ventriculares ectópicos pueden estar relacionados con arritmias ventriculares, como la taquicardia ventricular o la fibrilación ventricular.
@@ -41,8 +46,8 @@ En este caso, el desafio presente consiste en el diagnóstico eficiente de anoma
 
 ## Comprensión de los datos
 
-Para nuestro estudio se toma como fuente de datos un fichero csv obtenido del sitio web del siguiente enlace__,
-donde a su vez se puede encontrar el significado de los metadatos proporcionados.
+Para nuestro estudio se toma como fuente de datos un fichero csv obtenido del sitio web del siguiente [enlace](https://www.kaggle.com/code/gregoiredc/arrhythmia-on-ecg-classification-using-cnn)
+donde, en esta misma dirección se puede encontrar el significado de los metadatos proporcionados.
 
 A partir del contenido del fichero se realiza en siguiente analisis exploratorio de los datos
 
@@ -402,6 +407,8 @@ df_train_signal %>%
   mutate(tiempo=tiempos)
 
 
+df_train_signal %>%
+  mutate()
 ```
 
 En cuanto a las caracteristicas extraidas para el entenamiento del modelo, las seleccionadas son las siguientes:
