@@ -23,17 +23,22 @@ En nuestro caso, se ha decidido seguir la metodología CRISP-DM, dividiendo nues
 
 
 
-
 ## Comprensión de los datos
-Se ha realizado un estudio previo del funcionamiento de los mismos. __EXPLICAR__
+Se ha realizado un estudio previo del funcionamiento de los mismos. De este, hemos extraido las siguientes conclusiones:
 
-Cabe destacar qeu un electrocardiograma se divide en las siguientes partes
+Un electrocardiograma es una prueba médica utilizada para evaluar la salud del corazón y diagnosticar problemas cardíacos. El corazón funciona como una bomba muscular, y su actividad eléctrica coordina la contracción de las distintas partes del músculo cardíaco. Este, en un estado normal tiene una frecuencia de bombeo de entre 60 y 100 pulsaciones por segundo, algo a tener en cuenta a lo largo de este cuaderno.
 
-__EXPLICAR__
+Cabe destacar que un electrocardiograma se divide en las siguientes partes:
 
-En este caso, el desafio presente consiste en el diagnóstico eficiente de anomalias en el pulso cardíaco atendiendo a la zona donde se produce el latido, que puede estar asociada a _ y por lo tanto su detecctión es clave para la realización de un diagnóstico precoz de las enfermedades. En este caso, los tipos de latidos son los siguientes:
+
+[!Onda en un ECG]("./imagenes/ECG_parts.pgn")
+
+
+Donde en P, se contraen las cavidades superiores del corazón, en QRS se contraen las inferiores y en T serecuperan las celulas del músculo cardíaco.
+
+En este caso, el desafio presente consiste en el diagnóstico eficiente de anomalias en el pulso cardíaco atendiendo a la zona donde se produce el latido, siendo diagnosticables mediante el estudio de la onda del ECG, y que puede estar asociada a enfermedades, por lo tanto su detecctión es clave para la realización de un diagnóstico precozs. En este caso, los tipos de latidos son los siguientes:
 *    Normal: son aquellos que siguen el ritmo cardíaco regular y se originan en el nodo sinusal, que es el marcapasos natural del corazón.
-*   Supraventricular ectopic beat: en español latidos supraventriculares ectópicos pueden estar asociados con arritmias supraventriculares como la fibrilación auricular.
+*   Supraventricular ectopic beat: en español      pueden estar asociados con arritmias supraventriculares como la fibrilación auricular.
 *   Ventricular ectopic beat: o latidos ventriculares ectópicos pueden estar relacionados con arritmias ventriculares, como la taquicardia ventricular o la fibrilación ventricular.
 *    Fusion beat: latidos de fusión pueden ocurrir en ciertas condiciones, como durante la estimulación eléctrica del corazón o en presencia de arritmias.
 
@@ -41,8 +46,8 @@ En este caso, el desafio presente consiste en el diagnóstico eficiente de anoma
 
 ## Comprensión de los datos
 
-Para nuestro estudio se toma como fuente de datos un fichero csv obtenido del sitio web del siguiente enlace__,
-donde a su vez se puede encontrar el significado de los metadatos proporcionados.
+Para nuestro estudio se toma como fuente de datos un fichero csv obtenido del sitio web del siguiente [enlace](https://www.kaggle.com/code/gregoiredc/arrhythmia-on-ecg-classification-using-cnn)
+donde, en esta misma dirección se puede encontrar el significado de los metadatos proporcionados.
 
 A partir del contenido del fichero se realiza en siguiente analisis exploratorio de los datos
 
@@ -386,23 +391,100 @@ cwtsinwaveQ <-cwt(elemQ,n0,nv)
 
 ##  Preparación de los datos
 Dado que implementaremos dos modelos diferences, como se verá en el siguiente apartado, y estos funcionan de forma ligeramente diferente, se generarán dos dataframes distintos para que se adapten a estos.
+En ambos casos, en primera instancia se obtiene un conjunto de entrenamiento y de test balanceado, que permita obtener metricas de rendimiento de forma sencilla.
+
 *   Primer dataframe: este se limita a almacenar las métricas extraibles de cada onda, omitiendo los valores en sí de esta onda en función del tiempo. Este se usa para alimentar un algormitmo de clasificación, que en este caso se ha decidido que sea `xgboost`
 
 ```{r}
 
-ind_train <- sample(1:dim(df)[1],size = round(dim(df)[1]*0.002))
+set.seed(123)
 
-df_train <- data.frame(id = ind_train,clase=etiquetas[ind_train])
+mu_N <- sample(which(etiquetas=="N"),size = 50,replace = F)
+mu_S <- sample(which(etiquetas=="S"),size = 50,replace = F)
+mu_V <- sample(which(etiquetas=="V"),size = 50,replace = F)
+mu_F <- sample(which(etiquetas=="F"),size = 50,replace = F)
 
-df_train_signal <- df_NA[ind_train,]
+train_N <- sample(mu_N,size = 40,replace = F)
+test_N <-setdiff(mu_N,train_N)
 
-df_train_signal %>%
-  mutate(media=valores_media)%>%
-  mutate(iqr=valores_iqr)%>%
-  mutate(tiempo=tiempos)
+train_S <- sample(mu_S,size = 40,replace = F)
+test_S <-setdiff(mu_S,train_S)
 
+train_V <- sample(mu_V,size = 40,replace = F)
+test_V <-setdiff(mu_V,train_V)
+
+train_F <- sample(mu_F,size = 40,replace = F)
+test_F <-setdiff(mu_F,train_F)
+
+
+train <- c(train_N,train_S,train_V,train_F)
+test <- c(test_N,test_S,test_V,test_F)
+
+df_train <- data.frame(id = train,clase=etiquetas[train])
 
 ```
+
+
+Una vez lograda la separación, se inicia la extracción de características
+
+
+```{r}
+calcular_ste_id <- function(id, tamano_ventana, solapamiento) {
+  signal <-unlist(df[which(id==df_train[,1]),])
+  longitud_signal <- length(signal)
+  energia_ste <- numeric(0)  # Vector para almacenar la energía STE
+  
+  # Iterar a través de la señal con solapamiento
+  for (i in seq(1, longitud_signal - tamano_ventana + 1, by = solapamiento)) {
+    ventana <- signal[i:(i + tamano_ventana - 1)]
+    energia_segmento <- sum(ventana^2)
+    energia_ste <- c(energia_ste, energia_segmento)
+  }
+  
+  return(energia_ste)
+}
+
+```
+
+
+Adición de los variables seleccionadas, en este caso para capturar las energias
+```{r}
+
+df_train <-df_train %>%
+  rowwise() %>%
+  mutate(ener_media = mean(calcular_ste_id(id, 15, 3)),
+         ener_50 = quantile(calcular_ste_id(id, 15, 3), 0.5),
+         ener_25 = quantile(calcular_ste_id(id, 15, 3), 0.25),
+         ener_75 = quantile(calcular_ste_id(id, 15, 3), 0.95)) 
+
+df_train %>% ggplot(aes(group=clase,y=ener_75))+
+  geom_boxplot()
+
+```
+
+A continuación, se le añaden las variables relativas a la transformada de gabor
+
+```{r}
+gabor <- function(id,w){
+  elem <- unlist(df[which(id==df_train[,1]),])
+  return(c(Mod(cgt(elem, w, freqstep=.005, scale=25, plot=FALSE))))
+}
+
+
+df_train <- df_train %>%
+  rowwise() %>%
+  mutate(gabor_media = mean(gabor(id, 20)),
+         gabor_50 = quantile(gabor(id, 20), 0.5),
+         gabor_25 = quantile(gabor(id, 20), 0.55),
+         gabor_75 = quantile(gabor(id, 20), 0.85))
+
+df_train %>%ggplot(aes(group=clase,y=(ener_75-ener_25)))+
+  geom_boxplot()
+
+```
+
+
+
 
 En cuanto a las caracteristicas extraidas para el entenamiento del modelo, las seleccionadas son las siguientes:
 
@@ -425,47 +507,97 @@ Antes de comenzar con el entrenamiento del modelo, se divide el conjunto de dato
 
 La proporción elegida en nuestro caso para el conjunto de entrenamiento ha sido del 80% de los datos.
 
-```{r}
-datos <- data.frame(
-  Columna1 = c(1, 2, 3, 4),
-  Columna2 = c("A", "B", "C", "D"),
-  Columna3 = c(TRUE, FALSE, TRUE, FALSE)
-)
 
-# Indices del conjunto de entrenamiento
-i_train <- sort(sample(1:dim(datos)[1],replace = F,size = round(dim(datos)[1]*0.8,0)))
-
-
-train <- datos[i_train,]
-train_df <- train[,-length(train)]
-train_class <- train[,length(train)]
-head(train)  
-  
-test <- datos[-i_train,]
-train_df <- test[,-length(test)]
-train_class <- test[,length(test)]
-head(test)
-
-```
-
-Una vez realizada la partición, se entrena el modelo con nuestros datos
 
 ```{r}
 # Convert data to DMatrix format
-dtrain <- xgb.DMatrix(data = as.matrix(train_df), label = train_class)
+
+train_col <- df_train$clase
+df_t <- df_train[,-c(1,2)]
+
+dtrain <- xgb.DMatrix(data = as.matrix(df_t), label = train_col)
 
 # Set parameters for the XGBoost model
 params <- list(
   objective = "multi:softmax",
-  objective = length(levels(train_class)),  
-  eval_metric = "mlogloss"         # log likelihood loss for binary classification
+  num_class = length(levels(train_col))
 )
 
 # Train the XGBoost model
-xgb_model <- xgboost(data = dtrain, params = params, nrounds = 10)
+xgb_model <- xgboost(data = dtrain, params = params, nrounds = 15)
 
 
 
+
+```
+
+
+
+
+```{r}
+
+df_test <- data.frame(id = test,clase=etiquetas[test])
+
+calcular_ste_id <- function(id, tamano_ventana, solapamiento) {
+  signal <-unlist(df[which(id==df_test[,1]),])
+  longitud_signal <- length(signal)
+  energia_ste <- numeric(0)  # Vector para almacenar la energía STE
+  
+  # Iterar a través de la señal con solapamiento
+  for (i in seq(1, longitud_signal - tamano_ventana + 1, by = solapamiento)) {
+    ventana <- signal[i:(i + tamano_ventana - 1)]
+    energia_segmento <- sum(ventana^2)
+    energia_ste <- c(energia_ste, energia_segmento)
+  }
+  
+  return(energia_ste)
+}
+
+df_test <-df_test %>%
+  rowwise() %>%
+  mutate(ener_media = mean(calcular_ste_id(id, 15, 3)),
+         ener_50 = quantile(calcular_ste_id(id, 15, 3), 0.5),
+         ener_25 = quantile(calcular_ste_id(id, 15, 3), 0.25),
+         ener_75 = quantile(calcular_ste_id(id, 15, 3), 0.95)) 
+
+gabor <- function(id,w){
+  elem <- unlist(df[which(id==df_test[,1]),])
+  return(c(Mod(cgt(elem, w, freqstep=.005, scale=25, plot=FALSE))))
+}
+
+
+df_test <- df_test %>%
+  rowwise() %>%
+  mutate(gabor_media = mean(gabor(id, 20)),
+         gabor_50 = quantile(gabor(id, 20), 0.5),
+         gabor_25 = quantile(gabor(id, 20), 0.55),
+         gabor_75 = quantile(gabor(id, 20), 0.85))
+
+
+
+```
+
+
+```{r}
+
+# Assuming df_test is your test dataset, and you've prepared it similarly to df_train
+test_col <- df_test$clase
+df_tst <- df_test[,-c(1,2)]
+
+# Convert the test data to xgb.DMatrix format
+dtest <- xgb.DMatrix(data = as.matrix(df_tst), label = test_col)
+
+# Make predictions on the test set
+predictions <- predict(xgb_model, dtest)
+
+confusion_matrix <- table(Actual = test_col, Predicted = predictions)
+print(confusion_matrix)
+
+accuracy <- sum(diag(confusion_matrix)) / sum(confusion_matrix)
+print(paste("Accuracy:", accuracy))
+
+importance_matrix <- xgb.importance(model = xgb_model)
+xgb.plot.importance(importance_matrix)
 ```
 
 
