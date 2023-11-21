@@ -130,14 +130,20 @@ load("vars.RData")
 
 
 Omitiendo los NA para los calculos de longitud se tiene que:
+
 ```{r}
-longitudes <- c()
-for(i in 1:dim(df)[1]){
-  v <- sum(!is.na(df_NA[i,]))
-  longitudes <- c(longitudes,v)
-}
-mean(longitudes)
-sd(longitudes)
+longitudes<-rowSums(!is.na(df_NA))
+minimo<-min(longitudes)
+maximo<-max(longitudes)
+media<-mean(longitudes)
+mediana<-median(longitudes)
+desviacion<-sd(longitudes)
+
+cat("El mínimo de las longitudes es: ",minimo,"\n \n")
+cat("El máximo de las longitudes es: ",maximo,"\n \n")
+cat("La media de las longitudes es: ",media,"\n \n")
+cat("La mediana de las longitudes es: ",mediana,"\n \n")
+cat("La desviación típica de las longitudes es: ",desviacion,"\n \n")
 ```
 
 La duración promedio general de nuestras señales es de `r mean(longitudes)` con una desviación típica de `r sd(longitudes)`. Además, la duración en función del tipo de onda es la siguiente:
@@ -199,10 +205,12 @@ Las seleccionadas para el tratamiento de nuestras señales han sido las siguient
 Realizando una pequeña busqueda previa, se tiene que la frecuencia de latidos promedio en señales Normales es cercana a los 100 latidos por minuto.
 Además, la frecuencia de muestreo del aparato es de 125 Hzs. Sabiendo esto, para aplicar la transformada wavelet en nuestro porblema, como primera aproximación, se visualiza la función para cada tipo de onda de forma individual, usando para ello el tamaño de ventana inicial que cumple lo siguiente:
 
-$$Periodo\_cardiaco (seg)= \frac{60}{100} = 0.6 s$$
+$$Periodo\_cardiaco (seg)= \frac{1}{125} = 0.008s$$
 
-Dado que se tiene que el aparato tiene una frecuencia de 125Hz, el número de muestras en cada periodo de un latido es de
-$$125 \cdot 0.6 = 75$$
+Vemos que entonces el tiempo de duración de nuestra onda es de:
+$$\frac{187}{125} = 1.496$$
+Es decir, un segundo y medio, aunque como la media de longitudes nos salía
+
 Por ello, como primera ventana incial tomaremos una de prueba algo más del doble para evitar problemas de cara a captrar la señal, que en este caso será de 160
 
 
@@ -374,23 +382,6 @@ plot(ste_resultadoQ,type="l",col="orange")
 
 *   Wavelets
 Por ultimo se aplican las wavelets al problema en cuestión, que nos permitiran aislar las frecuencias del posible ruido de los electrocardiogramas junto con sus elementos básicos, P, QRS y T, explicados con anterioridad.
-
-```{r}
-n0<-6
-nv<- 15
-source("scales.R")
-
-par(mfrow=c(2,3))
-cwtsinwaveN <-cwt(elemN,n0,nv)
-cwtsinwaveS <-cwt(elemS,n0,nv)
-cwtsinwaveV <-cwt(elemV,n0,nv)
-cwtsinwaveF <-cwt(elemF,n0,nv)
-cwtsinwaveQ <-cwt(elemQ,n0,nv)
-
-
-
-```
-
 
 
 
