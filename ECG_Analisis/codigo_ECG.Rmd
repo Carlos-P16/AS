@@ -114,7 +114,7 @@ señales son los siguientes:
 
 *   Duración promedio: hay que tener en cuenta que todos no tienen la misma longitud, ya que se rellena con 0s a partir de donde faltan datos. Se crea un nuevo df cambiando estos 0s por NA
 
-```{r}
+```{r eval=FALSE, include=FALSE}
 df_NA <- df
 for (i in 1:dim(df)[1]){
   df_NA[i,(max(which(df_NA[i,]!=0))+1):dim(df)[2]] <- NA
@@ -123,6 +123,11 @@ head(df_NA)
 
 save(df_NA,file="vars.RData")
 ```
+
+```{r}
+load("vars.RData")
+```
+
 
 Omitiendo los NA para los calculos de longitud se tiene que:
 ```{r}
