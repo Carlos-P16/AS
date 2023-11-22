@@ -790,7 +790,7 @@ print(paste("Accuracy:", accuracy))
 ```
 
 
-Se muestra que, a partir de las pocas características obtenidas de los datos, el modelo es capaz de obtener resultados de forma rápida,, alcanzando una tasa de acierto del 70% a pesar de los pocos datos usados para entrenar el modelo, a lo que hay que sumar el hecho de que la clasificación es en 4 categorias, implicando una mayor dificultad en la clasificación.
+Se muestra que, a partir de las pocas características obtenidas de los datos, el modelo es capaz de obtener resultados de forma rápida, alcanzando una tasa de acierto del 70% a pesar de los pocos datos usados para entrenar el modelo, a lo que hay que sumar el hecho de que la clasificación es en 4 categorias, implicando una mayor dificultad en la clasificación.
 
 
 ## Conclusiones
