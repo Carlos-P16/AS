@@ -62,6 +62,8 @@ library(pROC)
 library(ggplot2)
 library(tidyr)
 library(seewave)
+library(wavelets)
+library(signal)
 ```
 
 
@@ -146,10 +148,41 @@ cat("La mediana de las longitudes es: ",mediana,"\n \n")
 cat("La desviación típica de las longitudes es: ",desviacion,"\n \n")
 ```
 
+* Eliminación de los outliers en cuanto al tamaño de las ondas (con pocos valores)
+
+```{r}
+boxplot(longitudes, col = "green")
+a<-quantile(longitudes,0.25)
+rango_IQR<-IQR(longitudes)
+quitar<-a[[1]]-1.5*rango_IQR
+cat("Quitamos los datos cuya longitud sea menor a ",quitar)
+df_clean<-df_NA[longitudes>=45,]
+quitamos<-etiquetas[longitudes<45]
+total<-etiquetas
+etiquetas <- etiquetas[longitudes>=45]
+```
+
+```{r}
+table(quitamos)/length(quitamos)
+table(total)/length(total)
+df_clean<-df_NA
+etiquetas<-total
+```
+
+
+
 La duración promedio general de nuestras señales es de `r mean(longitudes)` con una desviación típica de `r sd(longitudes)`. Además, la duración en función del tipo de onda es la siguiente:
 
 ```{r}
-valores_long = data.frame(l=longitudes,cl=etiquetas)
+#longitudes<-longitudes[longitudes>45]
+valores_long = data.frame(l=longitudes,cl=total)
+
+ggplot(data=valores_long, aes(x=l, y=l, fill=cl)) +
+  geom_boxplot(color="black")
+```
+```{r}
+l=longitudes
+valores_long = data.frame(l=l,cl=etiquetas)
 
 ggplot(data=valores_long, aes(x=l, y=l, fill=cl)) +
   geom_boxplot(color="black")
@@ -161,8 +194,8 @@ ggplot(data=valores_long, aes(x=l, y=l, fill=cl)) +
 Las amplitures de las ondas siguen las siguientes distribuciones
 
 ```{r}
-head(df_NA)
-df_NA %>%
+head(df_clean)
+df_clean %>%
   mutate(etiquetas=etiquetas)%>%
   pivot_longer(cols=-etiquetas,names_to = "Elemento",values_to = "Valor")%>%
   ggplot(aes(x=etiquetas,y=Valor,fill=etiquetas))+
@@ -176,11 +209,11 @@ Con esto se puede observar que las distribuciones de las señales en función de
 Por ultimo, se representa de forma grafica un ejemplo de cada uno
 
 ```{r}
-elemN <- df[1,]
-elemS <- df[which(etiquetas=="S")[1],]
-elemV <- df[which(etiquetas=="V")[1],]
-elemF <- df[which(etiquetas=="F")[1],]
-elemQ <- df[which(etiquetas=="Unknown")[1],]
+elemN <- df_clean[1,]
+elemS <- df_clean[which(etiquetas=="S")[1],]
+elemV <- df_clean[which(etiquetas=="V")[1],]
+elemF <- df_clean[which(etiquetas=="F")[1],]
+elemQ <- df_clean[which(etiquetas=="Unknown")[1],]
 
 par(mfrow=c(2,3))
 plot(1:dim(elemN)[2],elemN,type="l",main="Onda normal",xlab="tiempo")
@@ -218,11 +251,16 @@ Por ello, como primera ventana incial tomaremos una de prueba algo más del dobl
 
 fr <-125
 
-elemN <- as.numeric(df[1,])
-elemS <- as.numeric(df[which(etiquetas=="S")[1],])
-elemV <- as.numeric(df[which(etiquetas=="V")[1],])
-elemF <- as.numeric(df[which(etiquetas=="F")[1],])
-elemQ <- as.numeric(df[which(etiquetas=="Unknown")[1],])
+elemN <- as.numeric(df_clean[1,])
+elemN<-elemN[!is.na(elemN)]
+elemS <- as.numeric(df_clean[which(etiquetas=="S")[1],])
+elemS<-elemS[!is.na(elemS)]
+elemV <- as.numeric(df_clean[which(etiquetas=="V")[1],])
+elemV<-elemV[!is.na(elemV)]
+elemF <- as.numeric(df_clean[which(etiquetas=="F")[1],])
+elemF<-elemF[!is.na(elemF)]
+elemQ <- as.numeric(df_clean[which(etiquetas=="Unknown")[1],])
+elemQ<-elemQ[!is.na(elemQ)]
 
 par(mfrow=c(2,3))
 spectro(elemN,f=fr,wl=40,ovlp=50,wn="bartlett",scale=F,flog=T)
@@ -240,14 +278,6 @@ title("Onda desconocida")
 Probando con otros tamaños de pantalla se tiene que los resultados son:
 ```{r}
 
-fr <-125
-
-elemN <- as.numeric(df[1,])
-elemS <- as.numeric(df[which(etiquetas=="S")[1],])
-elemV <- as.numeric(df[which(etiquetas=="V")[1],])
-elemF <- as.numeric(df[which(etiquetas=="F")[1],])
-elemQ <- as.numeric(df[which(etiquetas=="Unknown")[1],])
-
 par(mfrow=c(2,3))
 spectro(elemN,f=fr,wl=60,ovlp=50,wn="bartlett",scale=F,flog=T)
 title("Onda normal")
@@ -255,7 +285,7 @@ spectro(elemS,f=fr,wl=60,ovlp=50,wn="bartlett",scale=F,flog=T)
 title("Onda S")
 spectro(elemV,f=fr,wl=60,ovlp=50,wn="bartlett",scale=F,flog=T)
 title("Onda V")
-spectro(elemF,f=fr,wl=60,ovlp=50,wn="bartlett",scale=F,flog=T)
+spectro(elemF,f=fr,wl=52,ovlp=50,wn="bartlett",scale=F,flog=T)
 title("Onda F")
 spectro(elemQ,f=fr,wl=60,ovlp=50,wn="bartlett",scale=F,flog=T)
 title("Onda desconocida")
@@ -263,34 +293,11 @@ title("Onda desconocida")
 
 Con esto se tiene que para al menos la primera onda de cada tipo, la frecuencia de la onda en sí parece de mayor frecuencia que en el resto de ondas.
 
-```{r}
-# Frecuencia cardíaca en latidos por minuto
-frecuencia_cardiaca = 100
 
-# Intervalo RR en segundos
-intervalo_RR = 60 / frecuencia_cardiaca
-
-# Frecuencia de muestreo
-frecuencia_muestreo = 125
-
-# Número de muestras por intervalo RR
-muestras_por_RR = round(frecuencia_muestreo * intervalo_RR)
-
-# Tamaño de la ventana (por ejemplo, el doble de muestras por intervalo RR)
-tamano_ventana = 2 * muestras_por_RR
-```
-
-El espectro promedio de la onda es el siguiente: 
+* El espectro promedio de la onda es el siguiente: 
 
 ```{r}
 
-fr <-125
-
-elemN <- as.numeric(df[1,])
-elemS <- as.numeric(df[which(etiquetas=="S")[1],])
-elemV <- as.numeric(df[which(etiquetas=="V")[1],])
-elemF <- as.numeric(df[which(etiquetas=="F")[1],])
-elemQ <- as.numeric(df[which(etiquetas=="Unknown")[1],])
 
 par(mfrow=c(2,3))
 meanspec(elemN,f=fr,wl=60,ovlp=20,wn="bartlett",scale=F,flog=T)
@@ -305,14 +312,6 @@ meanspec(elemQ,f=fr,wl=60,ovlp=20,wn="bartlett",scale=F,flog=T)
 title("Onda desconocida")
 ```
 
-Se añade para el conjunto de entrenamineto la totalidad de sus espectros de onda promedio, para poder usarlos como características en nuestros algorimos.
-
-
-```{r}
-
-```
-
-
 
 Se replica el experimento con la transformada de gabor
 
@@ -320,22 +319,22 @@ Se replica el experimento con la transformada de gabor
 
 fr <-125
 
-elemN <- as.numeric(df[1,])
-elemS <- as.numeric(df[which(etiquetas=="S")[1],])
-elemV <- as.numeric(df[which(etiquetas=="V")[1],])
-elemF <- as.numeric(df[which(etiquetas=="F")[1],])
-elemQ <- as.numeric(df[which(etiquetas=="Unknown")[1],])
 
 par(mfrow=c(2,3))
-cgt(elemN, 125, freqstep=.005, scale=25, plot=TRUE)
+a<-cgt(elemN, 125, freqstep=.005, scale=25, plot=F)
+image(Mod(a))
 title("Onda normal")
-cgt(elemS, 125, freqstep=.005, scale=25, plot=TRUE)
+a<-cgt(elemS, 125, freqstep=.005, scale=25, plot=F)
+image(Mod(a))
 title("Onda S")
-cgt(elemV, 125, freqstep=.005, scale=25, plot=TRUE)
+a<-cgt(elemV, 125, freqstep=.005, scale=25, plot=F)
+image(Mod(a))
 title("Onda V")
-cgt(elemF, 125, freqstep=.005, scale=25, plot=TRUE)
+a<-cgt(elemF, 125, freqstep=.005, scale=25, plot=F)
+image(Mod(a))
 title("Onda F")
-cgt(elemQ, 125, freqstep=.005, scale=25, plot=TRUE)
+a<-cgt(elemQ, 125, freqstep=.005, scale=25, plot=F)
+image(Mod(a))
 title("Onda desconocida")
 ```
 A partir de esta, se pueden extraer los siguientes datos
@@ -392,24 +391,24 @@ En ambos casos, en primera instancia se obtiene un conjunto de entrenamiento y d
 *   Primer dataframe: este se limita a almacenar las métricas extraibles de cada onda, omitiendo los valores en sí de esta onda en función del tiempo. Este se usa para alimentar un algormitmo de clasificación, que en este caso se ha decidido que sea `xgboost`
 
 ```{r}
-
 set.seed(123)
 
-mu_N <- sample(which(etiquetas=="N"),size = 50,replace = F)
-mu_S <- sample(which(etiquetas=="S"),size = 50,replace = F)
-mu_V <- sample(which(etiquetas=="V"),size = 50,replace = F)
-mu_F <- sample(which(etiquetas=="F"),size = 50,replace = F)
 
-train_N <- sample(mu_N,size = 40,replace = F)
+mu_N <- sample(which(etiquetas=="N"),size = 150,replace = F)
+mu_S <- sample(which(etiquetas=="S"),size = 150,replace = F)
+mu_V <- sample(which(etiquetas=="V"),size = 150,replace = F)
+mu_F <- sample(which(etiquetas=="F"),size = 150,replace = F)
+
+train_N <- sample(mu_N,size = 120,replace = F)
 test_N <-setdiff(mu_N,train_N)
 
-train_S <- sample(mu_S,size = 40,replace = F)
+train_S <- sample(mu_S,size = 120,replace = F)
 test_S <-setdiff(mu_S,train_S)
 
-train_V <- sample(mu_V,size = 40,replace = F)
+train_V <- sample(mu_V,size = 120,replace = F)
 test_V <-setdiff(mu_V,train_V)
 
-train_F <- sample(mu_F,size = 40,replace = F)
+train_F <- sample(mu_F,size = 120,replace = F)
 test_F <-setdiff(mu_F,train_F)
 
 
@@ -426,7 +425,7 @@ Una vez lograda la separación, se inicia la extracción de características
 
 ```{r}
 calcular_ste_id <- function(id, tamano_ventana, solapamiento) {
-  signal <-unlist(df[which(id==df_train[,1]),])
+  signal <-unlist(df_clean[which(id==df_train[,1]),])
   longitud_signal <- length(signal)
   energia_ste <- numeric(0)  # Vector para almacenar la energía STE
   
@@ -448,10 +447,10 @@ Adición de los variables seleccionadas, en este caso para capturar las energias
 
 df_train <-df_train %>%
   rowwise() %>%
-  mutate(ener_media = mean(calcular_ste_id(id, 15, 3)),
-         ener_50 = quantile(calcular_ste_id(id, 15, 3), 0.5),
-         ener_25 = quantile(calcular_ste_id(id, 15, 3), 0.25),
-         ener_75 = quantile(calcular_ste_id(id, 15, 3), 0.95)) 
+  mutate(ener_media = mean(calcular_ste_id(id, 15, 3),na.rm=T),
+         ener_50 = quantile(calcular_ste_id(id, 15, 3), 0.5,na.rm=T),
+         ener_25 = quantile(calcular_ste_id(id, 15, 3), 0.25,na.rm=T),
+         ener_75 = quantile(calcular_ste_id(id, 15, 3), 0.95,na.rm=T)) 
 
 df_train %>% ggplot(aes(group=clase,y=ener_75))+
   geom_boxplot()
@@ -462,24 +461,146 @@ A continuación, se le añaden las variables relativas a la transformada de gabo
 
 ```{r}
 gabor <- function(id,w){
-  elem <- unlist(df[which(id==df_train[,1]),])
+  elem <- unlist(df_clean[which(id==df_train[,1]),])
+  elem<-elem[!is.na(elem)]
   return(c(Mod(cgt(elem, w, freqstep=.005, scale=25, plot=FALSE))))
 }
 
 
 df_train <- df_train %>%
   rowwise() %>%
-  mutate(gabor_media = mean(gabor(id, 20)),
-         gabor_50 = quantile(gabor(id, 20), 0.5),
-         gabor_25 = quantile(gabor(id, 20), 0.55),
-         gabor_75 = quantile(gabor(id, 20), 0.85))
+  mutate(gabor_media = mean(gabor(id, 20), na.rm=T),
+         gabor_50 = quantile(gabor(id, 20), 0.5, na.rm=T),
+         gabor_25 = quantile(gabor(id, 20), 0.55, na.rm=T),
+         gabor_75 = quantile(gabor(id, 20), 0.85, na.rm=T))
 
 df_train %>%ggplot(aes(group=clase,y=(ener_75-ener_25)))+
   geom_boxplot()
 
 ```
 
+```{r}
+data_NA_train <- df_clean[train,]
+media <- c()
+des <- c()
+per25 <- c()
+per75 <-c()
+for(i in 1:dim(data_NA_train)[1]){
+  media <- c(media,mean(unlist(data_NA_train[i,]),na.rm = T))
+  des <- c(des,sd(unlist(data_NA_train[i,]),na.rm = T))
+  per25 <- c(per25,quantile(unlist(data_NA_train[i,]),0.25,na.rm = T))
+  per75 <- c(per75,quantile(unlist(data_NA_train[i,]),0.75,na.rm = T))
+}
 
+df_train$amplitud_mean <- media
+df_train$amplitud_desv <- des
+df_train$amplitud_p25 <- per25
+df_train$amplitud_p75 <- per75
+
+ggplot(df_train,aes(y=amplitud_mean,group=clase,fill=clase))+geom_boxplot()
+ggplot(df_train,aes(y=amplitud_desv,group=clase,fill=clase))+geom_boxplot()
+ggplot(df_train,aes(y=amplitud_p75,group=clase,fill=clase))+geom_boxplot()
+ggplot(df_train,aes(y=amplitud_p25,group=clase,fill=clase))+geom_boxplot()
+```
+
+Ahora, realizamos un pequeño preprocesamiento para eliminar elementos de baja frecuentia mediante wavelets
+
+
+
+Lo mismo, aplicando convolución a la señal pasando un filtro de paso bajp
+```{r}
+
+wavelet_name <- "la8"  # Daubechies 4
+level <- 4
+
+x <- as.numeric(df_NA[1,][!is.na(df_NA[1,])])
+decomposition <- dwt(x)
+
+d1 <- decomposition
+d1@W$W1 <- matrix(rep(0,times=length(d1@W$W1)),ncol = 1)
+
+d2 <- decomposition
+d2@W$W2 <- matrix(rep(0,times=length(d2@W$W2)),ncol = 1)
+
+d3 <- decomposition
+d3@W$W3 <- matrix(rep(0,times=length(d3@W$W3)),ncol = 1)
+
+d4 <- decomposition
+d4@W$W3 <- matrix(rep(0,times=length(d4@W$W3)),ncol = 1)
+
+d5 <- decomposition
+d5@V$V1 <- matrix(rep(0,times=length(d5@V$V1)),ncol = 1)
+
+d6 <- decomposition
+d6@V$V2 <- matrix(rep(0,times=length(d6@V$V2)),ncol = 1)
+
+d7 <- decomposition
+d7@V$V3 <- matrix(rep(0,times=length(d7@V$V3)),ncol = 1)
+
+d8 <- decomposition
+d8@V$V2 <- matrix(rep(0,times=length(d8@V$V2)),ncol = 1)
+d8@V$V3 <- matrix(rep(0,times=length(d8@V$V3)),ncol = 1)
+d8@V$V4 <- matrix(rep(0,times=length(d8@V$V4)),ncol = 1)
+
+
+d1 <- idwt(d1)
+d2 <- idwt(d2)
+d3 <- idwt(d3)
+d4 <- idwt(d4)
+d5 <- idwt(d5)
+d6 <- idwt(d6)
+d7 <- idwt(d7)
+d8 <- idwt(d8)
+
+
+# Visualiza la señal original, la aproximación y los detalles
+par(mfrow = c(2, 4))
+plot(d1, main = "A", type = "l")
+plot(d2, main = "Ap1", type = "l")
+plot(d3, main = "Apro", type = "l")
+plot(d4, main = "Ap", type = "l")
+plot(d5, main = "As", type = "l")
+plot(d6, main = "A2", type = "l")
+plot(d7, main = "Aw", type = "l")
+plot(d8, main = "As", type = "l")
+```
+Ahora se aplica de forma sistematica al conjunto de nuestros datos
+```{r}
+
+transfor_w <- function(id,w){
+
+wavelet_name <- "la8"  # Daubechies 4
+level <- 4
+
+x <- as.numeric(df_NA[id,][!is.na(df_NA[id,])])
+#x <-unlist(df[which(id==df_train[,i]),])
+decomposition <- dwt(x)
+
+d8 <- decomposition
+d8@V$V2 <- matrix(rep(0,times=length(d8@V$V2)),ncol = 1)
+d8@V$V3 <- matrix(rep(0,times=length(d8@V$V3)),ncol = 1)
+d8@V$V4 <- matrix(rep(0,times=length(d8@V$V4)),ncol = 1)
+
+
+d8 <- idwt(d8)
+return(d8)
+
+  
+}
+
+
+df_train <-df_train %>%
+  rowwise() %>%
+  mutate(w_m= mean(transfor_w(id, 15)),
+         w_50 = quantile(transfor_w(id, 15), 0.5),
+         w_25 = quantile(transfor_w(id, 15), 0.25),
+         std = sd(transfor_w(id, 15)),
+         w_75 = quantile(transfor_w(id, 15), 0.95)) 
+
+df_train %>% ggplot(aes(group=clase,y=std))+
+  geom_boxplot()
+
+```
 
 
 En cuanto a las caracteristicas extraidas para el entenamiento del modelo, las seleccionadas son las siguientes:
@@ -502,6 +623,9 @@ En cuanto a las caracteristicas extraidas para el entenamiento del modelo, las s
 Antes de comenzar con el entrenamiento del modelo, se divide el conjunto de datos en train y test, de forma que pueda mantenerse un tratamiento honesto de los datos y evitar el suceso conocido como `fuga de datos`, que proporciona resultados irreales en nuestro modelo.
 
 La proporción elegida en nuestro caso para el conjunto de entrenamiento ha sido del 80% de los datos.
+```{r}
+
+```
 
 
 
@@ -520,7 +644,7 @@ params <- list(
 )
 
 # Train the XGBoost model
-xgb_model <- xgboost(data = dtrain, params = params, nrounds = 15)
+xgb_model <- xgboost(data = dtrain, params = params, nrounds =10)
 
 
 
@@ -531,7 +655,6 @@ xgb_model <- xgboost(data = dtrain, params = params, nrounds = 15)
 
 
 ```{r}
-
 df_test <- data.frame(id = test,clase=etiquetas[test])
 
 calcular_ste_id <- function(id, tamano_ventana, solapamiento) {
@@ -554,8 +677,14 @@ df_test <-df_test %>%
   mutate(ener_media = mean(calcular_ste_id(id, 15, 3)),
          ener_50 = quantile(calcular_ste_id(id, 15, 3), 0.5),
          ener_25 = quantile(calcular_ste_id(id, 15, 3), 0.25),
-         ener_75 = quantile(calcular_ste_id(id, 15, 3), 0.95)) 
+         ener_75 = quantile(calcular_ste_id(id, 15, 3), 0.95))
+```
 
+
+
+
+
+```{r}
 gabor <- function(id,w){
   elem <- unlist(df[which(id==df_test[,1]),])
   return(c(Mod(cgt(elem, w, freqstep=.005, scale=25, plot=FALSE))))
@@ -573,6 +702,61 @@ df_test <- df_test %>%
 
 ```
 
+```{r}
+data_NA_test <- df_NA[test,]
+media <- c()
+des <- c()
+per25 <- c()
+per75 <-c()
+for(i in 1:dim(data_NA_test)[1]){
+  media <- c(media,mean(unlist(data_NA_test[i,]),na.rm = T))
+  des <- c(des,sd(unlist(data_NA_test[i,]),na.rm = T))
+  per25 <- c(per25,quantile(unlist(data_NA_test[i,]),0.25,na.rm = T))
+  per75 <- c(per75,quantile(unlist(data_NA_test[i,]),0.75,na.rm = T))
+}
+
+df_test$amplitud_mean <- media
+df_test$amplitud_desv <- des
+df_test$amplitud_p25 <- per25
+df_test$amplitud_p75 <- per75
+```
+
+
+```{r}
+
+transfor_w <- function(id,w){
+
+wavelet_name <- "la8"  # Daubechies 4
+level <- 4
+
+x <- as.numeric(df_NA[id,][!is.na(df_NA[id,])])
+#x <-unlist(df[which(id==df_train[,i]),])
+decomposition <- dwt(x)
+
+d8 <- decomposition
+d8@V$V2 <- matrix(rep(0,times=length(d8@V$V2)),ncol = 1)
+d8@V$V3 <- matrix(rep(0,times=length(d8@V$V3)),ncol = 1)
+d8@V$V4 <- matrix(rep(0,times=length(d8@V$V4)),ncol = 1)
+
+
+d8 <- idwt(d8)
+return(d8)
+
+  
+}
+
+
+df_test <-df_test %>%
+  rowwise() %>%
+  mutate(w_m= mean(transfor_w(id, 15)),
+         w_50 = quantile(transfor_w(id, 15), 0.5),
+         w_25 = quantile(transfor_w(id, 15), 0.25),
+         std = sd(transfor_w(id, 15)),
+         w_75 = quantile(transfor_w(id, 15), 0.95)) 
+
+
+ggplot(df_test,aes(y=std,group=clase))+geom_boxplot()
+```
 
 ```{r}
 
@@ -605,41 +789,16 @@ Esta se lleva a cabo en el fichero _x_, donde a partir de el segundo dataframe c
 
 ## Evaluación de los resultados
 
-#### Primer modelo
-
-Dado que se tenia un conjunto desvalanceado, es importante seleccionar una metrica adecuada para evaluar los resultados
-Como prmera aproximación usamos el accuracy, que aunque no cumpla con lo anterior nos servira para tomarla como referencia acerca del porcentaje total de instancias acertadas
 
 
-```{r}
-# Calculate accuracy
-accuracy <- sum(diag(conf_matrix)) / sum(conf_matrix)
-print(paste("Accuracy:", accuracy))
-```
-
-En cuanto a la tasa de aciertos en función de la clase se tiene la siguiente matriz de confusuón
-
-```{r}
-confusion_matrix <- table(Actual = y_test, Predicted = predictions + 1)
-print(confusion_matrix)
-
-```
-
-En cuanto al area bajo la curva, que resuleve nuestro problema de desvalanceo, para el problema es 
-la siguiente
 
 
-```{r}
-# Compute ROC curves for each class
-
-roc_curves <- multiclass.roc(rownames(y_test_matrix), as.numeric(predictions), percent = TRUE)
-
-# Plot ROC curves
-plot(roc_curves, col = c("red", "green", "blue"), lty = 1:3, main = "Multi-Class ROC Curve", lwd = 2)
-legend("right", legend = levels(y_test), col = c("red", "green", "blue"), lty = 1:3, lwd = 2)
-
-```
 
 
-#### Segundo modelo
-La evaluación de los resultados, al igual que el entrenamiento del modelo, se ha llevado a cabo en el fichero _fichero_
+
+
+
+
+
+
+
