@@ -1,0 +1,10 @@
+Frecuencia (o tamaño de la estructura):
+
+Frecuencias más bajas suavizan estructuras más grandes en la imagen.
+Frecuencias más altas tienden a suavizar detalles más pequeños.
+Puedes experimentar con diferentes valores de frecuencia para ver cuál funciona mejor para tu caso. Por ejemplo, valores en el rango de 0.1 a 0.5 pueden ser un buen punto de partida.
+Orientación:
+
+La orientación controla la dirección de las estructuras que se suavizarán.
+Puedes probar con varias orientaciones para ver cuál se ajusta mejor a la orientación del ruido o de las estructuras que deseas suavizar.
+La orientación se mide en grados, y valores como 0, 45, 90, y 135 son comunes, ya que representan direcciones horizontales, diagonales, verticales, etc.
