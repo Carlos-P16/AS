@@ -1,6 +1,6 @@
 ---
 title: "codigo"
-author: "ruben"
+author: "grupo E"
 date: "2023-11-17"
 output: html_document
 ---
@@ -77,22 +77,28 @@ mitbih_train <- read_csv("data/mitbih_train.csv",
 
 
 ```{r warning=FALSE}
-glimpse(mitbih_train)
+dim(mitbih_train)
+
+colnames(mitbih_train)
+
+head(mitbih_train)
+
+tail(mitbih_train)
 ```
 
 
 Dado que la ultima columna, como se indica en la fuente de los datos, se corresponde con la clasificación de 
-los datos, separamos por un lado esta de las series temporales que se corresponden con las frecuencias cardiacas,
-almacenadas en el resto de las columnas.
-
+estos, se separan las etiquetas de las series temporales, que se corresponden con las frecuencias cardiacas.
 
 ```{r}
 
+#Señales que conforman cada una de las instancias
 df <- mitbih_train[,1:187]
-clases <- mitbih_train[,188]
-clases <- clases[[1]]
 
+#Clases a las que pertenecen cada una de las instancias
+clases <- unlist(mitbih_train[,188])
 
+#Resumen de la aparición de las clases
 table(clases)
 
 
@@ -100,21 +106,36 @@ table(clases)
 
 
 Si se visualizan las clases en función de su aparición en el conjunto de datos, tenemos que se muestra una 
-completa predominancia de los ECG donde el paciente no padece de ninguna enfermedad. La distribución de los valores se puede observar en el siguiente diagrama de sectores.
+completa predominancia de los ECG donde el paciente no padece de ninguna enfermedad. La distribución de los valores se puede observar en el siguiente plot.
 
 ```{r}
+# Se etiquetan las clases segun el valor indicado en la fuente de los datos
 etiquetas <- factor(x=clases,levels=c(0,1,2,3,4),labels = c("N","S","V","F","Unknown"))
-pie(table(etiquetas))
+
+proporciones <- table(etiquetas) / length(etiquetas)
+
+# Crear el barplot
+barplot(proporciones, col = rainbow(length(proporciones)), main = "Proporciones de Etiquetas", xlab = "Etiquetas", ylab = "Proporción")
+
+# Agregar leyenda
+legend("topright", legend = levels(etiquetas), fill = rainbow(length(proporciones)), title = "Etiquetas")
+
+
 ```
 
 En cuanto a las series temporales de cada una de las señales, se tiene que estas son de longitudes distintas, siendo su fin aquella columna a partir de la cual el resto de valores son 0. Para ello, generamos un conjunto de datos adicional donde a partir del fin de los mismos almacenamos un `NA` en lugar de un 0
 
 
 
+
 Algunas primeras metricas de nuestro conjunto de datos para poder enterder comportamientos de cada uno de los tipos de 
 señales son los siguientes:
 
+
+
 *   Duración promedio: hay que tener en cuenta que todos no tienen la misma longitud, ya que se rellena con 0s a partir de donde faltan datos. Se crea un nuevo df cambiando estos 0s por NA
+
+
 
 ```{r eval=FALSE, include=FALSE}
 df_NA <- df
@@ -194,7 +215,7 @@ ggplot(data=valores_long, aes(x=l, y=l, fill=cl)) +
 Las amplitures de las ondas siguen las siguientes distribuciones
 
 ```{r}
-head(df_clean)
+
 df_clean %>%
   mutate(etiquetas=etiquetas)%>%
   pivot_longer(cols=-etiquetas,names_to = "Elemento",values_to = "Valor")%>%
@@ -233,18 +254,20 @@ Cabe destacar que sabemos que la frecuencia de muestreo del aparato es de 125Hzs
 
 Las seleccionadas para el tratamiento de nuestras señales han sido las siguientes:
 
-*   Wavelets para la identificación de las partes de la onda
+*   Transformada de Fourier en tiempo corto
+*   Wavelets para la identificación de las partes de la onda y eliminación de componentes de la misma
+*   Aplicación de la transformada de gabor
+*   Energía de la onda
+*   Varianza de la onda   
+*   Espectro promedio de la onda
 
-Realizando una pequeña busqueda previa, se tiene que la frecuencia de latidos promedio en señales Normales es cercana a los 100 latidos por minuto.
-Además, la frecuencia de muestreo del aparato es de 125 Hzs. Sabiendo esto, para aplicar la transformada wavelet en nuestro porblema, como primera aproximación, se visualiza la función para cada tipo de onda de forma individual, usando para ello el tamaño de ventana inicial que cumple lo siguiente:
+Realizando una pequeña busqueda previa, se tiene que la frecuencia de latidos promedio en señales Normales es cercana a los 100 latidos por minuto. Sabiendo esto, para aplicar la transformada wavelet en nuestro porblema, como primera aproximación, se visualiza la función para cada tipo de onda de forma individual, usando para ello el tamaño de ventana inicial que cumple lo siguiente:
 
-$$Periodo\_cardiaco (seg)= \frac{1}{125} = 0.008s$$
+$$Periodo\_cardiaco (seg)= \frac{60}{80} = 0.75s$$
 
-Vemos que entonces el tiempo de duración de nuestra onda es de:
-$$\frac{187}{125} = 1.496$$
-Es decir, un segundo y medio, aunque como la media de longitudes nos salía
-
-Por ello, como primera ventana incial tomaremos una de prueba algo más del doble para evitar problemas de cara a captrar la señal, que en este caso será de 160
+Dado que el aparato tiene una frecuencia de muestreo de 125 Hzs, el número de muestras que toma por periodo del corazón es de
+$$\frac{125}{0.75} = 166$$
+Medida que hemos de tener en cuenta de cara a definir la ventana de forma correcta.
 
 
 ```{r}
@@ -275,6 +298,8 @@ spectro(elemQ,f=fr,wl=40,ovlp=50,wn="bartlett",scale=F,flog=T)
 title("Onda desconocida")
 ```
 
+De esta se puede observar que el pulso principal cardiaco se ve reflejado en el análisis espectral dado.
+
 Probando con otros tamaños de pantalla se tiene que los resultados son:
 ```{r}
 
@@ -291,10 +316,10 @@ spectro(elemQ,f=fr,wl=60,ovlp=50,wn="bartlett",scale=F,flog=T)
 title("Onda desconocida")
 ```
 
-Con esto se tiene que para al menos la primera onda de cada tipo, la frecuencia de la onda en sí parece de mayor frecuencia que en el resto de ondas.
+En cambio, para este tamaño de ventana la frecuencia del pulso no se ve representada en la misma medida.
 
 
-* El espectro promedio de la onda es el siguiente: 
+* El espectro promedio de la onda 
 
 ```{r}
 
@@ -312,8 +337,12 @@ meanspec(elemQ,f=fr,wl=60,ovlp=20,wn="bartlett",scale=F,flog=T)
 title("Onda desconocida")
 ```
 
+Esta nos permite obtener una idea acerca del espectro medio de frecuencias, es decir, la amplitud relativa media de la distribución de frecuencias, de nuestras primeras ondas.
 
-Se replica el experimento con la transformada de gabor
+
+*   Transformada de gabor
+
+Se replica el experimento realizado aplicando la STFT pero en este caso para la transformada de gabor
 
 ```{r}
 
@@ -321,29 +350,26 @@ fr <-125
 
 
 par(mfrow=c(2,3))
-a<-cgt(elemN, 125, freqstep=.005, scale=25, plot=F)
+a<-cgt(elemN,50, freqstep=.005, scale=15, plot=F)
 image(Mod(a))
 title("Onda normal")
-a<-cgt(elemS, 125, freqstep=.005, scale=25, plot=F)
+a<-cgt(elemS, 50, freqstep=.005, scale=8, plot=F)
 image(Mod(a))
 title("Onda S")
-a<-cgt(elemV, 125, freqstep=.005, scale=25, plot=F)
+a<-cgt(elemV,50, freqstep=.005, scale=10, plot=F)
 image(Mod(a))
 title("Onda V")
-a<-cgt(elemF, 125, freqstep=.005, scale=25, plot=F)
+a<-cgt(elemF,50, freqstep=.005, scale=25, plot=F)
 image(Mod(a))
 title("Onda F")
-a<-cgt(elemQ, 125, freqstep=.005, scale=25, plot=F)
+a<-cgt(elemQ,50, freqstep=.005, scale=35, plot=F)
 image(Mod(a))
 title("Onda desconocida")
 ```
-A partir de esta, se pueden extraer los siguientes datos
+A partir de esta, se puede determinar, para las ondas dadas, en que instantes temporales aparecen las frecuencias altas en la onda.
 
 
-
-
-
-Además, a partir de las ondas dadas podemos extraer el valor de su energia de la siguiente forma
+*   Energía de la onda
 
 
 ```{r}
@@ -378,139 +404,14 @@ plot(ste_resultadoQ,type="l",col="orange")
 
 ```
 
+A partir de esta podemos sacar conclusiones acerca de la amplitud que esta toma en función del tiempo, pudiendo ser util de cara a la clasificación.
 
 *   Wavelets
 Por ultimo se aplican las wavelets al problema en cuestión, que nos permitiran aislar las frecuencias del posible ruido de los electrocardiogramas junto con sus elementos básicos, P, QRS y T, explicados con anterioridad.
 
-
-
-##  Preparación de los datos
-Dado que implementaremos dos modelos diferences, como se verá en el siguiente apartado, y estos funcionan de forma ligeramente diferente, se generarán dos dataframes distintos para que se adapten a estos.
-En ambos casos, en primera instancia se obtiene un conjunto de entrenamiento y de test balanceado, que permita obtener metricas de rendimiento de forma sencilla.
-
-*   Primer dataframe: este se limita a almacenar las métricas extraibles de cada onda, omitiendo los valores en sí de esta onda en función del tiempo. Este se usa para alimentar un algormitmo de clasificación, que en este caso se ha decidido que sea `xgboost`
-
-```{r}
-set.seed(123)
-
-
-mu_N <- sample(which(etiquetas=="N"),size = 150,replace = F)
-mu_S <- sample(which(etiquetas=="S"),size = 150,replace = F)
-mu_V <- sample(which(etiquetas=="V"),size = 150,replace = F)
-mu_F <- sample(which(etiquetas=="F"),size = 150,replace = F)
-
-train_N <- sample(mu_N,size = 120,replace = F)
-test_N <-setdiff(mu_N,train_N)
-
-train_S <- sample(mu_S,size = 120,replace = F)
-test_S <-setdiff(mu_S,train_S)
-
-train_V <- sample(mu_V,size = 120,replace = F)
-test_V <-setdiff(mu_V,train_V)
-
-train_F <- sample(mu_F,size = 120,replace = F)
-test_F <-setdiff(mu_F,train_F)
-
-
-train <- c(train_N,train_S,train_V,train_F)
-test <- c(test_N,test_S,test_V,test_F)
-
-df_train <- data.frame(id = train,clase=etiquetas[train])
-
-```
-
-
-Una vez lograda la separación, se inicia la extracción de características
-
-
-```{r}
-calcular_ste_id <- function(id, tamano_ventana, solapamiento) {
-  signal <-unlist(df_clean[which(id==df_train[,1]),])
-  longitud_signal <- length(signal)
-  energia_ste <- numeric(0)  # Vector para almacenar la energía STE
-  
-  # Iterar a través de la señal con solapamiento
-  for (i in seq(1, longitud_signal - tamano_ventana + 1, by = solapamiento)) {
-    ventana <- signal[i:(i + tamano_ventana - 1)]
-    energia_segmento <- sum(ventana^2)
-    energia_ste <- c(energia_ste, energia_segmento)
-  }
-  
-  return(energia_ste)
-}
-
-```
-
-
-Adición de los variables seleccionadas, en este caso para capturar las energias
 ```{r}
 
-df_train <-df_train %>%
-  rowwise() %>%
-  mutate(ener_media = mean(calcular_ste_id(id, 15, 3),na.rm=T),
-         ener_50 = quantile(calcular_ste_id(id, 15, 3), 0.5,na.rm=T),
-         ener_25 = quantile(calcular_ste_id(id, 15, 3), 0.25,na.rm=T),
-         ener_75 = quantile(calcular_ste_id(id, 15, 3), 0.95,na.rm=T)) 
-
-df_train %>% ggplot(aes(group=clase,y=ener_75))+
-  geom_boxplot()
-
-```
-
-A continuación, se le añaden las variables relativas a la transformada de gabor
-
-```{r}
-gabor <- function(id,w){
-  elem <- unlist(df_clean[which(id==df_train[,1]),])
-  elem<-elem[!is.na(elem)]
-  return(c(Mod(cgt(elem, w, freqstep=.005, scale=25, plot=FALSE))))
-}
-
-
-df_train <- df_train %>%
-  rowwise() %>%
-  mutate(gabor_media = mean(gabor(id, 20), na.rm=T),
-         gabor_50 = quantile(gabor(id, 20), 0.5, na.rm=T),
-         gabor_25 = quantile(gabor(id, 20), 0.55, na.rm=T),
-         gabor_75 = quantile(gabor(id, 20), 0.85, na.rm=T))
-
-df_train %>%ggplot(aes(group=clase,y=(ener_75-ener_25)))+
-  geom_boxplot()
-
-```
-
-```{r}
-data_NA_train <- df_clean[train,]
-media <- c()
-des <- c()
-per25 <- c()
-per75 <-c()
-for(i in 1:dim(data_NA_train)[1]){
-  media <- c(media,mean(unlist(data_NA_train[i,]),na.rm = T))
-  des <- c(des,sd(unlist(data_NA_train[i,]),na.rm = T))
-  per25 <- c(per25,quantile(unlist(data_NA_train[i,]),0.25,na.rm = T))
-  per75 <- c(per75,quantile(unlist(data_NA_train[i,]),0.75,na.rm = T))
-}
-
-df_train$amplitud_mean <- media
-df_train$amplitud_desv <- des
-df_train$amplitud_p25 <- per25
-df_train$amplitud_p75 <- per75
-
-ggplot(df_train,aes(y=amplitud_mean,group=clase,fill=clase))+geom_boxplot()
-ggplot(df_train,aes(y=amplitud_desv,group=clase,fill=clase))+geom_boxplot()
-ggplot(df_train,aes(y=amplitud_p75,group=clase,fill=clase))+geom_boxplot()
-ggplot(df_train,aes(y=amplitud_p25,group=clase,fill=clase))+geom_boxplot()
-```
-
-Ahora, realizamos un pequeño preprocesamiento para eliminar elementos de baja frecuentia mediante wavelets
-
-
-
-Lo mismo, aplicando convolución a la señal pasando un filtro de paso bajp
-```{r}
-
-wavelet_name <- "la8"  # Daubechies 4
+wavelet_name <- "la8" 
 level <- 4
 
 x <- as.numeric(df_NA[1,][!is.na(df_NA[1,])])
@@ -555,21 +456,149 @@ d8 <- idwt(d8)
 
 # Visualiza la señal original, la aproximación y los detalles
 par(mfrow = c(2, 4))
-plot(d1, main = "A", type = "l")
-plot(d2, main = "Ap1", type = "l")
-plot(d3, main = "Apro", type = "l")
-plot(d4, main = "Ap", type = "l")
-plot(d5, main = "As", type = "l")
-plot(d6, main = "A2", type = "l")
-plot(d7, main = "Aw", type = "l")
-plot(d8, main = "As", type = "l")
+plot(d1, main = "Baja 1", type = "l")
+plot(d2, main = "Baja 2", type = "l")
+plot(d3, main = "Baja 3", type = "l")
+plot(d4, main = "Baja 4", type = "l")
+plot(d5, main = "Alta 1", type = "l")
+plot(d6, main = "Alta 2", type = "l")
+plot(d7, main = "Alta 3", type = "l")
+plot(d8, main = "Alta 4", type = "l")
 ```
-Ahora se aplica de forma sistematica al conjunto de nuestros datos
+
+En este apartado se puede observar el valor de una señal de muestra una vez eliminadas partes de sus frecuencias de alta y baja frecuencia. En este caso las relacionadas con la eliminación de las componentes de baja frecuencia se muestran en la primera fila, y los de componentes de alta frecuencia con los de la segunda.
+
+
+
+
+
+##  Preparación de los datos
+
+
+Dado que implementaremos dos modelos diferences, como se verá en el siguiente apartado, y estos funcionan de forma ligeramente diferente, se generarán dos dataframes distintos para que se adapten a estos.
+En ambos casos, en primera instancia se obtiene un conjunto de entrenamiento y de test balanceado, que permita obtener metricas de rendimiento de forma sencilla.
+
+
+*   Primer dataframe: este se limita a almacenar las métricas extraibles de cada onda, omitiendo los valores en sí de esta onda en función del tiempo. Este se usa para alimentar un algormitmo de clasificación, que en este caso se ha decidido que sea `xgboost`
+
+```{r}
+set.seed(123)
+
+
+mu_N <- sample(which(etiquetas=="N"),size = 150,replace = F)
+mu_S <- sample(which(etiquetas=="S"),size = 150,replace = F)
+mu_V <- sample(which(etiquetas=="V"),size = 150,replace = F)
+mu_F <- sample(which(etiquetas=="F"),size = 150,replace = F)
+
+train_N <- sample(mu_N,size = 120,replace = F)
+test_N <-setdiff(mu_N,train_N)
+
+train_S <- sample(mu_S,size = 120,replace = F)
+test_S <-setdiff(mu_S,train_S)
+
+train_V <- sample(mu_V,size = 120,replace = F)
+test_V <-setdiff(mu_V,train_V)
+
+train_F <- sample(mu_F,size = 120,replace = F)
+test_F <-setdiff(mu_F,train_F)
+
+
+train <- c(train_N,train_S,train_V,train_F)
+test <- c(test_N,test_S,test_V,test_F)
+
+df_train <- data.frame(id = train,clase=etiquetas[train])
+
+```
+
+
+Una vez lograda la separación, se inicia la extracción de características
+
+La primera de ellas es la energía de la onda
+
+
+```{r}
+calcular_ste_id <- function(id, tamano_ventana, solapamiento) {
+  signal <-unlist(df_clean[which(id==df_train[,1]),])
+  longitud_signal <- length(signal)
+  energia_ste <- numeric(0)  # Vector para almacenar la energía STE
+  
+  # Iterar a través de la señal con solapamiento
+  for (i in seq(1, longitud_signal - tamano_ventana + 1, by = solapamiento)) {
+    ventana <- signal[i:(i + tamano_ventana - 1)]
+    energia_segmento <- sum(ventana^2)
+    energia_ste <- c(energia_ste, energia_segmento)
+  }
+  
+  return(energia_ste)
+}
+
+```
+
+
+```{r}
+
+df_train <-df_train %>%
+  rowwise() %>%
+  mutate(ener_media = mean(calcular_ste_id(id, 15, 3),na.rm=T),
+         ener_50 = quantile(calcular_ste_id(id, 15, 3), 0.5,na.rm=T),
+         ener_25 = quantile(calcular_ste_id(id, 15, 3), 0.25,na.rm=T),
+         ener_75 = quantile(calcular_ste_id(id, 15, 3), 0.75,na.rm=T)) 
+
+```
+
+A continuación, se le añaden las variables relativas a la transformada de gabor
+
+```{r}
+gabor <- function(id,w){
+  elem <- unlist(df_clean[which(id==df_train[,1]),])
+  elem<-elem[!is.na(elem)]
+  return(c(Mod(cgt(elem, w, freqstep=.005, scale=25, plot=FALSE))))
+}
+
+
+df_train <- df_train %>%
+  rowwise() %>%
+  mutate(gabor_media = mean(gabor(id, 20), na.rm=T),
+         gabor_25 = quantile(gabor(id, 20), 0.5, na.rm=T),
+         gabor_50 = quantile(gabor(id, 20), 0.50, na.rm=T),
+         gabor_75 = quantile(gabor(id, 20), 0.75, na.rm=T))
+
+
+```
+
+
+
+Tras esto, se añaden metricas relacionadas con la amplitur de la onda y sus cuantiles 
+
+
+```{r}
+data_NA_train <- df_clean[train,]
+media <- c()
+des <- c()
+per25 <- c()
+per75 <-c()
+for(i in 1:dim(data_NA_train)[1]){
+  media <- c(media,mean(unlist(data_NA_train[i,]),na.rm = T))
+  des <- c(des,sd(unlist(data_NA_train[i,]),na.rm = T))
+  per25 <- c(per25,quantile(unlist(data_NA_train[i,]),0.25,na.rm = T))
+  per75 <- c(per75,quantile(unlist(data_NA_train[i,]),0.75,na.rm = T))
+}
+
+df_train$amplitud_mean <- media
+df_train$amplitud_desv <- des
+df_train$amplitud_p25 <- per25
+df_train$amplitud_p75 <- per75
+
+```
+
+
+Ahora, realizamos un pequeño preprocesamiento para eliminar elementos de alta frecuentia mediante wavelets y con las señales resultantes calculamos algunas de sus métricas.
+
 ```{r}
 
 transfor_w <- function(id,w){
 
-wavelet_name <- "la8"  # Daubechies 4
+wavelet_name <- "la8" 
 level <- 4
 
 x <- as.numeric(df_NA[id,][!is.na(df_NA[id,])])
@@ -592,45 +621,27 @@ return(d8)
 df_train <-df_train %>%
   rowwise() %>%
   mutate(w_m= mean(transfor_w(id, 15)),
-         w_50 = quantile(transfor_w(id, 15), 0.5),
          w_25 = quantile(transfor_w(id, 15), 0.25),
-         std = sd(transfor_w(id, 15)),
-         w_75 = quantile(transfor_w(id, 15), 0.95)) 
+         w_50 = quantile(transfor_w(id, 15), 0.5),
+         w_75 = quantile(transfor_w(id, 15), 0.75),
+         std = sd(transfor_w(id, 15))) 
 
-df_train %>% ggplot(aes(group=clase,y=std))+
-  geom_boxplot()
 
 ```
 
-
-En cuanto a las caracteristicas extraidas para el entenamiento del modelo, las seleccionadas son las siguientes:
-
-*   Tiempo de duración
-*   Amplitud promedio
-*   Rango intercuartílico
-*   Cosas de frecuancuas me
-*   Energia mediana de la onda
-*   Energía máxima de la onda
-
-#### Añadir las propias de los wavelet
-
-
-*   Segundo dataframe: contiene los valores que toma en el tiempo la señal, además de una serie de características añadidas en las. Este alimentará el 
 
 ## Implementación del modelo
 
 #### Primer modelo: XGBOOST
-Antes de comenzar con el entrenamiento del modelo, se divide el conjunto de datos en train y test, de forma que pueda mantenerse un tratamiento honesto de los datos y evitar el suceso conocido como `fuga de datos`, que proporciona resultados irreales en nuestro modelo.
 
-La proporción elegida en nuestro caso para el conjunto de entrenamiento ha sido del 80% de los datos.
+Para la elección del modelo, dado que se tiene una cantidad escasa de datos se ha decidici hacer uso de un algoritmo de boosting, del grupo de algoritmos de machine learning diseñados para mejorar la precisión de los modelos predictivos que se centra en corregir los errores de los modelos anteriores, asignando más peso a las instancias mal clasificadas para que el próximo modelo en la secuencia se enfoque en corregir esas predicciones.
+
+Dentro de este grupo se ha decidido hacer uso de XGBoost, una implementación eficiente y escalable de Gradient Boosting que se ha vuelto extremadamente popular detro de los algoritmos de clasificación. Dentro de las razones de esta elección destaca su gran velocidad de computo, la obtención de forma general de buenos resultados y, a diferencia de una red neuronal, la capacidad de lograr resultados buenos a partir de un conjunto muy escaso de datos como el nuestro donde existen un amplio rango de variables a la vez.
+
+El entrenamiento del modelo se muestra a continuación
+
+
 ```{r}
-
-```
-
-
-
-```{r}
-# Convert data to DMatrix format
 
 train_col <- df_train$clase
 df_t <- df_train[,-c(1,2)]
@@ -653,6 +664,8 @@ xgb_model <- xgboost(data = dtrain, params = params, nrounds =10)
 
 
 
+ 
+Antes de obtener los resultados, se aplican las mismas transformaciones al train que al test
 
 ```{r}
 df_test <- data.frame(id = test,clase=etiquetas[test])
@@ -675,13 +688,10 @@ calcular_ste_id <- function(id, tamano_ventana, solapamiento) {
 df_test <-df_test %>%
   rowwise() %>%
   mutate(ener_media = mean(calcular_ste_id(id, 15, 3)),
-         ener_50 = quantile(calcular_ste_id(id, 15, 3), 0.5),
          ener_25 = quantile(calcular_ste_id(id, 15, 3), 0.25),
-         ener_75 = quantile(calcular_ste_id(id, 15, 3), 0.95))
+         ener_50 = quantile(calcular_ste_id(id, 15, 3), 0.5),
+         ener_75 = quantile(calcular_ste_id(id, 15, 3), 0.75))
 ```
-
-
-
 
 
 ```{r}
@@ -694,9 +704,9 @@ gabor <- function(id,w){
 df_test <- df_test %>%
   rowwise() %>%
   mutate(gabor_media = mean(gabor(id, 20)),
+         gabor_25 = quantile(gabor(id, 20), 0.25),
          gabor_50 = quantile(gabor(id, 20), 0.5),
-         gabor_25 = quantile(gabor(id, 20), 0.55),
-         gabor_75 = quantile(gabor(id, 20), 0.85))
+         gabor_75 = quantile(gabor(id, 20), 0.75))
 
 
 
@@ -749,18 +759,19 @@ return(d8)
 df_test <-df_test %>%
   rowwise() %>%
   mutate(w_m= mean(transfor_w(id, 15)),
-         w_50 = quantile(transfor_w(id, 15), 0.5),
          w_25 = quantile(transfor_w(id, 15), 0.25),
-         std = sd(transfor_w(id, 15)),
-         w_75 = quantile(transfor_w(id, 15), 0.95)) 
+         w_50 = quantile(transfor_w(id, 15), 0.5),
+         w_75 = quantile(transfor_w(id, 15), 0.75),
+         std = sd(transfor_w(id, 15))) 
 
 
-ggplot(df_test,aes(y=std,group=clase))+geom_boxplot()
 ```
 
+
+Tras esto, se predice el test y se calculan las metricas de resultado en función de sus clases reales.
 ```{r}
 
-# Assuming df_test is your test dataset, and you've prepared it similarly to df_train
+
 test_col <- df_test$clase
 df_tst <- df_test[,-c(1,2)]
 
@@ -781,13 +792,14 @@ xgb.plot.importance(importance_matrix)
 ```
 
 
-EN este caso, para nuestro conjunto de entrena
+Se muestra que, a partir de las pocas características obtenidas de los datos, el modelo es capaz de obtener resultados de forma rápida, especialmente teniendo en cuenta el escaso ajuste que se realiza en el modelo en si y la poca cantidad de datos empleados para el entrenamieto del modelo
 
 
-*   Implementación del segundo modelo
-Esta se lleva a cabo en el fichero _x_, donde a partir de el segundo dataframe creado se implementa una red neuronal en python capaz de clasificar nuestras ondas.
+## Conclusiones
+A lo largo de este trabajo hemos podido poner en práctica la mayoria de conceptos impartidos a lo largo de la asignatura, algo que nos ha permitido asentar los mismos, además de descubrir su aplicación en problemas del mundo real. Además, nos ha hecho entender su importancia de cara a trabajar con señales, en especial si el conjunto de datos de entrada es pequeño, ya que logra obtener una gran cantidad a partir de estos.
 
-## Evaluación de los resultados
+
+Con esto, es evidente que un análisis espectral exhaustivo de los datos y una fase de extracción de características adecuada son elementos cruciales para alcanzar resultados más significativos en el ámbito de la ciencia de datos, en comparación con un estudio que carezca de dichas consideraciones.
 
 
 
