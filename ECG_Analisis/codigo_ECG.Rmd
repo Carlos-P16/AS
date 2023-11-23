@@ -10,12 +10,12 @@ knitr::opts_chunk$set(echo = TRUE)
 knitr::opts_chunk$set(warning = FALSE)
 ```
 
-A lo largo de este documento se captura el procedimeinto segudo para tratar con el primer tipo de señales biomedicas
+A lo largo de este documento se captura el procedimiento seguido para tratar con el primer tipo de señales biomédicas
 con las que trabajaremos a lo largo de nuestro proyecto, los ECG.
 
 En nuestro caso, se ha decidido seguir la metodología CRISP-DM, dividiendo nuestro estudio en las siguientes fases
 
-*   Comprensión del negocio y objetivo del estudio
+*   Comprensión del tema y objetivo del estudio
 *   Comprensión y análisis exploratorio de los datos 
 *   Preprocesamiento del conjunto de datos
 *   Implementación del modelo
@@ -31,12 +31,12 @@ Un electrocardiograma es una prueba médica utilizada para evaluar la salud del 
 Cabe destacar que un electrocardiograma se divide en las siguientes partes:
 
 
-[!Onda en un ECG]("./imagenes/ECG_parts.pgn")
+[!Onda en un ECG](./imagenes/ECG_parts.png)
 
 
 Donde en P, se contraen las cavidades superiores del corazón, en QRS se contraen las inferiores y en T serecuperan las celulas del músculo cardíaco.
 
-En este caso, el desafio presente consiste en el diagnóstico eficiente de anomalias en el pulso cardíaco atendiendo a la zona donde se produce el latido, siendo diagnosticables mediante el estudio de la onda del ECG, y que puede estar asociada a enfermedades, por lo tanto su detecctión es clave para la realización de un diagnóstico precozs. En este caso, los tipos de latidos son los siguientes:
+En este caso, el desafio presente consiste en el diagnóstico eficiente de anomalias en el pulso cardíaco atendiendo a la zona donde se produce el latido, siendo diagnosticables mediante el estudio de la onda del ECG, y que puede estar asociada a enfermedades, por lo tanto su detecctión es clave para la realización de un diagnóstico precoz. En este caso, los tipos de latidos son los siguientes:
 *    Normal: son aquellos que siguen el ritmo cardíaco regular y se originan en el nodo sinusal, que es el marcapasos natural del corazón.
 *   Supraventricular ectopic beat: en español      pueden estar asociados con arritmias supraventriculares como la fibrilación auricular.
 *   Ventricular ectopic beat: o latidos ventriculares ectópicos pueden estar relacionados con arritmias ventriculares, como la taquicardia ventricular o la fibrilación ventricular.
