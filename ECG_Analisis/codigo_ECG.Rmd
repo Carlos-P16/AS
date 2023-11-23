@@ -30,6 +30,18 @@ Un electrocardiograma es una prueba médica utilizada para evaluar la salud del 
 
 Cabe destacar que un electrocardiograma se divide en las siguientes partes:
 
+```{r}
+library(png)
+ruta_imagen <- "./imagenes/ECG_parts.png"
+
+# Lee la imagen PNG
+imagen <- readPNG(ruta_imagen)
+
+# Muestra la imagen
+plot(1:2, type = "n", axes = FALSE, xlab = "", ylab = "")
+rasterImage(imagen, 1, 1, 2, 2)
+```
+
 
 [!Onda en un ECG](./imagenes/ECG_parts.png)
 
