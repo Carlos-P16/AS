@@ -1,6 +1,13 @@
 # AS
 Trabajo de la asignatura Análisis de señales
 
+# Componentes del trabajo:
+Manuel Rubio
+Ruben Castillo
+Pedro José Cánovas
+Carlos Peris
+Isaac Martí
+
 ## ¿Cómo trabajaría yo con las ramas?
 <br>
 **main**: para poner los avances seguros, es decir, cuando acabemos una sección y estemos completamente seguros de que está bien  
