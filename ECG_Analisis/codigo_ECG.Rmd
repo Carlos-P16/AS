@@ -213,13 +213,6 @@ valores_long = data.frame(l=longitudes,cl=total)
 ggplot(data=valores_long, aes(x=l, y=l, fill=cl)) +
   geom_boxplot(color="black")
 ```
-```{r}
-l=longitudes
-valores_long = data.frame(l=l,cl=etiquetas)
-
-ggplot(data=valores_long, aes(x=l, y=l, fill=cl)) +
-  geom_boxplot(color="black")
-```
 
 
 *   Distribuciones de las amplitudes
@@ -520,6 +513,7 @@ test <- c(test_N,test_S,test_V,test_F)
 
 df_train <- data.frame(id = train,clase=etiquetas[train])
 
+head(df_train)
 ```
 
 
