@@ -25,3 +25,8 @@ Enlaces a usar :
 - Documento en RMD para preprocesado de imágenes.
 - Modelo en python para predicción de tumores
 
+Enlace al código de la calsifiación de imágenes:
+
+https://www.kaggle.com/code/akshayr009/tuberculosis-0-99-accuracy
+
+Este código se ha modificado y hemos añadido además los datos preprocesados para obetenr los resultados.
