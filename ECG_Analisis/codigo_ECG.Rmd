@@ -183,7 +183,7 @@ total<-etiquetas
 etiquetas <- etiquetas[longitudes>=45]
 ```
 
-```{r}
+```{r include=FALSE}
 table(quitamos)/length(quitamos)
 table(total)/length(total)
 df_clean<-df_NA
